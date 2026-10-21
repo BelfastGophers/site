@@ -35,9 +35,9 @@ require (
 	modernc.org/libc v1.77.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
-	uradical.io/go/httpgen v0.0.0 // indirect
+	//uradical.io/go/httpgen v0.0.0 // indirect
 )
 
-replace uradical.io/go/httpgen => ../../uradical/tools/httpgen
+//replace uradical.io/go/httpgen => ../../uradical/tools/httpgen
 
-tool uradical.io/go/httpgen
+//tool uradical.io/go/httpgen

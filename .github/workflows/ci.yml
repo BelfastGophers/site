@@ -27,16 +27,18 @@ jobs:
         run: go vet ./...
       - name: test
         run: go test -race ./...
-      - name: httpgen drift
-        run: |
-          go tool httpgen sync
-          changes=$(git status --porcelain)
-          if [ -n "$changes" ]; then
-            echo "Managed files differ from the pinned httpgen templates."
-            echo "Run 'go tool httpgen sync' and commit the result."
-            echo "$changes"
-            exit 1
-          fi
+      # Off until httpgen is released publicly, with the tool in go.mod: the
+      # first sync after it is back restores this step.
+      # - name: httpgen drift
+      #   run: |
+      #     go tool httpgen sync
+      #     changes=$(git status --porcelain)
+      #     if [ -n "$changes" ]; then
+      #       echo "Managed files differ from the pinned httpgen templates."
+      #       echo "Run 'go tool httpgen sync' and commit the result."
+      #       echo "$changes"
+      #       exit 1
+      #     fi
 
   crap:
     runs-on: ubuntu-latest
@@ -45,6 +47,10 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+      # go-crap reads go list's JSON with its stderr mixed in, so the
+      # "go: downloading" lines of a cold module cache break it. Download
+      # what the packages and their tests need first.
+      - run: go list -deps -test ./... > /dev/null
       # cmd is wiring, and is excluded. Everything else must stay under a
       # CRAP score of 30: complexity squared against missing coverage.
       - run: go run github.com/padiazg/go-crap@v0.5.1 scan --fail-above --threshold 30 --exclude 'cmd/.*' --no-progress
