@@ -13,3 +13,4 @@ tmp/
 certs/
 
 deploy/site-ansible/group_vars/all/vault.yml
+.DS_Store
