@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/" xmlns="http://www.w3.org/2005/Atom">
+ <id>yt:channel:lH4m_4FPMOYYw7hGKHS1UA</id>
+ <title>Belfast Gophers</title>
+ <published>2020-10-13T05:08:10+00:00</published>
+ <entry>
+  <id>yt:video:ObDCVxsB46U</id>
+  <yt:videoId>ObDCVxsB46U</yt:videoId>
+  <title>Casting Ent by Simon Hewitt (Tyndyll)</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=ObDCVxsB46U"/>
+  <published>2023-05-03T16:20:55+00:00</published>
+  <updated>2026-10-02T05:20:00+00:00</updated>
+  <media:group>
+   <media:title>Casting Ent by Simon Hewitt (Tyndyll)</media:title>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:Ais_N8rZSBo</id>
+  <yt:videoId>Ais_N8rZSBo</yt:videoId>
+  <title>Power of Functional Programming in Go by Chinmay Naik</title>
+  <published>2023-05-03T16:20:01+00:00</published>
+ </entry>
+</feed>

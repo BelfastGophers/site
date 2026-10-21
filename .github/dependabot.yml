@@ -1,0 +1,11 @@
+# Scaffolded by httpgen. This file is yours: edit it to suit the service.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: daily
+    allow:
+      # httpgen updates itself through the httpgen-update workflow, which
+      # syncs the managed files in the same pull request.
+      - dependency-type: direct

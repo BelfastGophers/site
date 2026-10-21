@@ -1,0 +1,22 @@
+{{define "content"}}
+<section class="wide">
+    <h1>Events</h1>
+    <p class="hint">Events come from <a href="https://www.meetup.com/belfast-gophers/">Meetup</a>: schedule them there,
+        and they appear here within the hour. Raffle entries are deleted a week after an event ends.</p>
+    <table>
+        <thead><tr><th>Event</th><th>Date</th><th></th><th></th></tr></thead>
+        <tbody>
+        {{range .}}
+        <tr>
+            <td>{{.Title}}</td>
+            <td>{{(local .StartsAt).Format "Mon 2 Jan 2006"}}</td>
+            <td><a href="/organisers/events/{{.ID}}">Raffle</a></td>
+            <td><a href="{{.URL}}" target="_blank" rel="noopener">On Meetup</a></td>
+        </tr>
+        {{else}}
+        <tr><td colspan="4">No events yet.</td></tr>
+        {{end}}
+        </tbody>
+    </table>
+</section>
+{{end}}

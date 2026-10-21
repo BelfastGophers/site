@@ -1,0 +1,12 @@
+#!/bin/sh
+# Managed by httpgen. Changes are overwritten by 'go tool httpgen sync'.
+set -eu
+
+unformatted=$(gofmt -l .)
+if [ -n "$unformatted" ]; then
+	echo "gofmt needed on:" >&2
+	echo "$unformatted" >&2
+	exit 1
+fi
+
+go vet ./...

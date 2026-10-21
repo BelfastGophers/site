@@ -1,0 +1,206 @@
+@font-face {
+    font-family: 'Game of Thrones';
+    src: url('/fonts/GameofThrones.ttf');
+}
+
+body {
+        padding: 0;
+        border: 0;
+        margin: 0;
+        font-family: Arial;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    main {
+        flex-grow: 1;
+        flex-shrink: 1;
+    }
+
+    a {
+        color: #798ecd;
+    }
+
+    .site-nav {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 2em;
+        padding: 1em;
+        background-color: rgb(51, 51, 55);
+    }
+
+    .site-nav a {
+        color: white;
+        text-decoration: none;
+        font-size: 1.1em;
+    }
+
+    .site-nav a:hover, .site-nav a[aria-current="page"] {
+        color: #f6e27a;
+    }
+
+    .mainHeader {
+        padding-top: 30px;
+        padding-bottom: 30px;
+        color: white;
+        text-align: center;
+        background-size: cover;
+        min-height: 550px;
+        background-image: linear-gradient(to bottom,
+        rgba(51, 51, 55, 9) 98%,
+        rgba(107, 108, 113, 0));
+    }
+
+    .mainHeader > h1 {
+        max-width: 99%;
+        font-family: 'Game of Thrones';
+        font-size: 5em;
+        letter-spacing: 5px;
+        font-weight: bold;
+        background-image: linear-gradient(
+                to right,
+                #462523 0,
+                #cb9b51 22%,
+                #f6e27a 45%,
+                #f6f2c0 50%,
+                #f6e27a 55%,
+                #cb9b51 78%,
+                #462523 100%
+        );
+        color: transparent;
+        -webkit-background-clip: text;
+
+    }
+
+    section {
+        font-size: 1.5em;
+        padding-top: 50px;
+        margin: auto;
+        width: 70%;
+        padding-bottom: 100px;
+    }
+
+    section > h1 {
+        font-family: 'Game of Thrones';
+        letter-spacing: 3px;
+        text-align: center;
+    }
+
+    .sponsors, .organisers {
+        display: flex;
+        flex-wrap: wrap;
+        max-width: 75vw;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .sponsor, organiser {
+        padding: 50px;
+    }
+
+    img.sponsor {
+        max-width: 260px;
+        max-height: 120px;
+        padding: 0;
+        margin: 2em;
+    }
+
+    /* The hosts, who give us the venue, on a line of their own. */
+    img.sponsor.host {
+        max-width: min(520px, 90%);
+        max-height: 160px;
+    }
+
+    #speak {
+        display: flex;
+        vertical-align: top;
+        justify-content: center;
+    }
+
+    #next, .centre {
+        text-align: center;
+    }
+
+    #enter, #draw{
+        text-align: center;
+        align-items: center;
+        justify-content: center;
+    }
+
+    #winner {
+        font-family: 'Game of Thrones';
+        font-size: 2em;
+        padding-bottom: 50px;
+    }
+
+
+    footer {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        margin-top: auto;
+        min-height: 50px;
+        background-image: linear-gradient(180deg,
+        rgba(107, 108, 113, 9),
+        rgba(51, 51, 55, 5) 98%);
+    }
+
+    .footer-links {
+        display: flex;
+        gap: 2em;
+        padding-top: 1em;
+    }
+
+    .footer-links a {
+        color: white;
+    }
+
+    .hosted {
+        display: flex;
+        align-items: center;
+        gap: 0.6em;
+        padding: 1em;
+        color: white;
+        text-decoration: none;
+    }
+
+    input {
+        margin-top: 50px;
+        margin-bottom: 50px;
+        font-size: 1.5em;
+
+    }
+
+    input[type="text"], input[type="email"] {
+        border-radius: 20px;
+        padding: 10px;
+    }
+
+    button, input[type="submit"] {
+        border-radius: 40px;
+        padding: 25px;
+        background-color: #798ecd;
+        color: white;
+        font-family: 'Game of Thrones';
+    }
+
+    @media (max-width: 400px) {
+        .mainHeader {
+            min-height: 250px;
+        }
+
+        .mainHeader > h1 {
+            font-size: 1.2em;
+        }
+
+        section {
+            font-size: 0.8em;
+        }
+
+        iframe{
+            height: 2200px;
+        }
+    }

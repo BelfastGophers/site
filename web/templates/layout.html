@@ -1,0 +1,54 @@
+{{define "layout"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light only">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-icon-180x180.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/android-icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+    <link rel="manifest" href="/icons/manifest.json">
+    <meta name="msapplication-TileColor" content="#ffffff">
+    <meta name="msapplication-TileImage" content="/icons/ms-icon-144x144.png">
+
+    <meta name="title" property="og:title" content="The Belfast Gophers">
+    <meta name="image" property="og:image" content="https://belfastgophers.com/images/gopher_card.png">
+    <meta name="author" content="Alan Bradley">
+    <meta name="description" property="og:description"
+          content="Belfast Gophers, aka The Go Belfast User Group (GBUG), are a Belfast-based community for anyone interested in the Go programming language.">
+    <meta property="og:url" content="https://belfastgophers.com/">
+
+    <title>Belfast Gophers - {{.Title}}</title>
+
+    <link rel="stylesheet" href="/styles/belfastgophers.css">
+    <link rel="stylesheet" href="/styles/forms.css">
+</head>
+
+<body>
+{{template "nav" .}}
+<header class="mainHeader">
+    <a href="/">
+        <picture>
+            <source media="(min-width:401px)" srcset="/images/logo.webp" type="image/webp">
+            <source media="(max-width:400px)" srcset="/images/logo_small.webp" type="image/webp">
+            <img src="/images/logo.webp" alt="Belfast Gophers Logo">
+        </picture>
+    </a>
+    <h1>BelfastGophers</h1>
+</header>
+{{if .Login}}
+<nav class="organiser-nav">
+    <a href="/organisers">Events</a>
+    <a href="/organisers/proposals">Talk proposals</a>
+    <form action="/auth/logout" method="post"><button type="submit" class="link">Sign out</button></form>
+</nav>
+{{end}}
+<main>
+{{template "content" .Data}}
+</main>
+
+{{template "footer"}}
+</body>
+</html>
+{{end}}

@@ -1,0 +1,17 @@
+{{define "content"}}
+<section class="wide">
+    <h1>Talk proposals</h1>
+    {{range .}}
+    <article class="proposal">
+        <h2>{{.Title}}</h2>
+        <p class="meta">{{.Name}} &lt;<a href="mailto:{{.Email}}">{{.Email}}</a>&gt;
+            &middot; about {{.DurationMinutes}} minutes
+            &middot; {{if .Remote}}remote{{else}}in person{{end}}
+            &middot; submitted {{(local .SubmittedAt).Format "2 Jan 2006"}}</p>
+        <p class="description">{{.Description}}</p>
+    </article>
+    {{else}}
+    <p>No proposals yet.</p>
+    {{end}}
+</section>
+{{end}}

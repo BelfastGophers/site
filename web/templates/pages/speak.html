@@ -1,0 +1,38 @@
+{{define "content"}}
+<section id="speak-form">
+    <h1>Speak at Belfast Gophers</h1>
+    <p class="centre">We would love to hear your talk. Tell us about it and we will be in touch to schedule it.</p>
+
+    <form action="/speak" method="post" class="stacked">
+        <label for="name">Name</label>
+        {{with .Errors.name}}<p class="error" id="name-error">{{.}}</p>{{end}}
+        <input type="text" id="name" name="name" value="{{.Form.Name}}" maxlength="100" autocomplete="name" required>
+
+        <label for="email">Email</label>
+        {{with .Errors.email}}<p class="error" id="email-error">{{.}}</p>{{end}}
+        <input type="email" id="email" name="email" value="{{.Form.Email}}" maxlength="254" autocomplete="email" required>
+
+        <label for="title">Talk title</label>
+        {{with .Errors.title}}<p class="error" id="title-error">{{.}}</p>{{end}}
+        <input type="text" id="title" name="title" value="{{.Form.Title}}" maxlength="200" required>
+
+        <label for="description">Description</label>
+        {{with .Errors.description}}<p class="error" id="description-error">{{.}}</p>{{end}}
+        <textarea id="description" name="description" rows="8" maxlength="5000" required>{{.Form.Description}}</textarea>
+
+        <label for="duration">Duration, in minutes</label>
+        <p class="hint">A rough idea of how long you will need.</p>
+        {{with .Errors.duration}}<p class="error" id="duration-error">{{.}}</p>{{end}}
+        <input type="number" id="duration" name="duration" value="{{with .Form.Duration}}{{.}}{{end}}" min="1" max="180" required>
+
+        <fieldset>
+            <legend>Would you be a remote speaker?</legend>
+            {{with .Errors.remote}}<p class="error" id="remote-error">{{.}}</p>{{end}}
+            <label class="choice"><input type="radio" name="remote" value="true" {{if .Form.RemoteIs true}}checked{{end}}> Yes</label>
+            <label class="choice"><input type="radio" name="remote" value="false" {{if .Form.RemoteIs false}}checked{{end}}> No</label>
+        </fieldset>
+
+        <input type="submit" value="Submit">
+    </form>
+</section>
+{{end}}

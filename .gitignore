@@ -1,0 +1,10 @@
+# The database, and SQLite's files beside it.
+*.db
+*.db-wal
+*.db-shm
+
+# IDE settings.
+.idea/
+
+# air's builds.
+tmp/

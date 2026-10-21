@@ -1,0 +1,58 @@
+# Managed by httpgen. Changes are overwritten by 'go tool httpgen sync'.
+version: "2"
+
+linters:
+  # The standard set includes staticcheck, whose ST1005 check requires
+  # lowercase error strings in errors.New and fmt.Errorf.
+  default: standard
+  enable:
+    - bodyclose
+    # contextcheck: a function given a context passes it on rather than
+    # starting a new one, so cancellation reaches the database and beyond.
+    - contextcheck
+    - errorlint
+    - forbidigo
+    - gocritic
+    - gosec
+    - misspell
+    - noctx
+    - nolintlint
+    # rowserrcheck and sqlclosecheck: database/sql rows and statements are
+    # closed, and rows.Err is checked after the loop. Quiet until a service
+    # has database code.
+    - rowserrcheck
+    - sloglint
+    - sqlclosecheck
+    - unconvert
+    - usestdlibvars
+
+  settings:
+    sloglint:
+      # A message per request cannot be grouped by a log platform, and the
+      # varying part belongs in an attribute anyway.
+      static-msg: true
+      key-naming-case: snake
+      # These collide with the fields slog writes itself.
+      forbidden-keys: [time, level, msg, source]
+    forbidigo:
+      # Resolve the package a call belongs to, so a slog logger named log is
+      # not mistaken for the log package.
+      analyze-types: true
+      forbid:
+        - pattern: ^(fmt\.Print(|f|ln)|print|println)$
+          msg: write to an io.Writer or log through slog
+        - pattern: ^log\.(Print|Printf|Println|Fatal|Fatalf|Fatalln|Panic|Panicf|Panicln)$
+          msg: use log/slog
+    gocritic:
+      disable-all: true
+      enabled-checks:
+        - ruleguard
+      settings:
+        ruleguard:
+          failOn: all
+          rules: ${base-path}/gorules/rules.go
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

@@ -1,0 +1,27 @@
+# Belfast Gophers
+
+> Belfast Gophers, also known as the Go Belfast User Group (GBUG), is a free community in Belfast, Northern Ireland, for anyone interested in the Go programming language. It has met since June 2016, with talks, food and drink, and a live stream of every meet-up.
+
+Meet-ups are listed, and people sign up for them, on Meetup. Recordings of past talks are on YouTube. The group follows the Go Community Code of Conduct.
+
+## The group
+
+- [Home](https://belfastgophers.com/): about the group and its next meet-up
+- [Meetup](https://www.meetup.com/belfast-gophers/): meet-ups and signing up for them
+- [Speak](https://belfastgophers.com/speak): offer a talk
+- [Sponsors](https://belfastgophers.com/sponsors): who supports the group, and how to sponsor it
+- [Code of Conduct](https://belfastgophers.com/code-of-conduct): how members are expected to behave, and how to report a problem
+
+## Past talks
+
+- [Testing CLI Go applications with TestScript, by Jakub Jarosz](https://belfastgophers.com/jan2023_1/): January 2023
+- [A Greybeard Discusses Ent(s) via Treebeard, by Simon Hewitt](https://belfastgophers.com/jan2023_2/): January 2023
+- [December 2020 meet-up](https://belfastgophers.com/dec2020/)
+- [November 2020 meet-up](https://belfastgophers.com/nov2020/)
+- [Videos](https://belfastgophers.com/videos): recordings of past talks
+- [YouTube channel](https://www.youtube.com/channel/UClH4m_4FPMOYYw7hGKHS1UA): recordings of past meet-ups
+
+## Optional
+
+- [Swag](https://belfastgophers.com/swag): Belfast Gophers t-shirts and more, at cost
+- [Privacy](https://belfastgophers.com/privacy): what the site keeps about visitors

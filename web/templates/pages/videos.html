@@ -1,0 +1,19 @@
+{{define "content"}}
+<section class="wide" id="videos">
+    <h1>Videos</h1>
+    <p>Every meet-up is recorded. Here are the talks, newest first, and they are all on our
+        <a href="https://www.youtube.com/channel/UClH4m_4FPMOYYw7hGKHS1UA" target="_blank" rel="noopener">YouTube channel</a> too.</p>
+    <div class="videos">
+        {{range .}}
+        <figure>
+            <iframe class="video" src="https://www.youtube-nocookie.com/embed/{{.YouTubeID}}" title="{{.Title}}"
+                    allow="encrypted-media; picture-in-picture; fullscreen"
+                    referrerpolicy="strict-origin-when-cross-origin" loading="lazy"></iframe>
+            <figcaption>{{.Title}}</figcaption>
+        </figure>
+        {{else}}
+        <p>The videos are on their way: see them on YouTube meanwhile.</p>
+        {{end}}
+    </div>
+</section>
+{{end}}

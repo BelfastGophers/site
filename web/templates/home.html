@@ -1,0 +1,163 @@
+{{define "layout"}}<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light only">
+    <link rel="apple-touch-icon" sizes="57x57" href="/icons/apple-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/icons/apple-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/icons/apple-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/icons/apple-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/icons/apple-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/icons/apple-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/icons/apple-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/apple-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-icon-180x180.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/android-icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="/icons/favicon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+    <link rel="manifest" href="/icons/manifest.json">
+    <meta name="msapplication-TileColor" content="#ffffff">
+    <meta name="msapplication-TileImage" content="/icons/ms-icon-144x144.png">
+
+    <meta name="title" property='og:title' content='The Belfast Gophers' />
+    <meta name="image" property='og:image' content='http://belfastgophers.com/images/gopher_card.png' />
+    <meta name="author" content="Alan Bradley">
+    <meta name="description" property='og:description'
+        content='Belfast Gophers, aka The Go Belfast User Group (GBUG), are a Belfast-based community for anyone interested in the Go programming language.' />
+    <meta property='og:url' content='http://belfastgophers.com/' />
+
+    <title>Belfast Gophers</title>
+
+    <link rel="stylesheet" href="/styles/belfastgophers.css">
+</head>
+
+<body>
+    {{template "nav" .}}
+    <header class="mainHeader">
+        <picture>
+            <source media="(min-width:401px)" srcset="/images/logo.webp" type="image/webp">
+            <source media="(max-width:400px)" srcset="/images/logo_small.webp" type="image/webp">
+            <img src="/images/logo.webp" alt="Belfast Gophers Logo">
+        </picture>
+        <h1>BelfastGophers</h1>
+    </header>
+    <main>
+    <section id="aboutus">
+        <div>
+        <p>Belfast Gophers, aka The Go Belfast User Group (GBUG), are a Belfast-based community for anyone
+            interested in the Go programming language. Belfast Gophers held their first Meetup on Wednesday, 22 June, 2016, and since
+            then the group has grown to over 700 members. We hold a Meetup once a quarter at DailyPay's offices. All Meetups
+            are free, and typically comprise a number of talks and socialising, with food and drink provided. We live-stream all
+            Meetups via zoom thanks to <a href="http://golangbridge.org/">GoBridge</a>. Recordings of previous meet-ups are available on our
+            <a href="https://www.youtube.com/channel/UClH4m_4FPMOYYw7hGKHS1UA">YouTube channel</a>, where you
+            can also find an archive of previous recordings.
+        </p>
+
+        <p>Membership of Belfast Gophers is managed via our <a href="https://www.meetup.com/Belfast-Gophers/">Meetup
+            page</a>; everyone is
+            welcome! We also have an active <a href="https://twitter.com/belfast_gopher">Twitter feed</a> and our
+            members
+            are active in the
+            <a href="https://gophers.slack.com/archives/C0NERAYB0">#belfast</a>, Gophers Slack (<a
+                    href="https://invite.slack.golangbridge.org">sign-up here</a>).
+        </p>
+        </div>
+        
+    </section>
+
+    <section id="next">
+        <h1>Next Meet-up</h1>
+        {{with .Data}}
+        <p class="event-title">{{.Title}}</p>
+        <p>{{(local .StartsAt).Format "Monday 2 January 2006"}}</p>
+        <p><a class="button" href="{{.URL}}">Sign up on Meetup</a></p>
+        {{else}}
+        <p>No meet-up scheduled yet. Join us on <a href="https://www.meetup.com/belfast-gophers/">Meetup</a> to hear when the next one is.</p>
+        {{end}}
+    </section>
+
+    <section>
+        <h1>Sponsors</h1>
+        {{template "sponsor-logos"}}
+    </section>
+
+    <section>
+        <h1>Media Partners</h1>
+        <div>
+            <p class="centre">
+                We are very proud to be media partners with the following awesome Go conferences.
+            </p>
+
+            <div class="sponsors">
+                <a href="https://www.golab.io/" target="_blank">
+                    <picture>
+                        <source media="(min-width:401px)" srcset="/images/mediaPartners/golab.webp" type="image/webp">
+                        <source media="(max-width:400px)" srcset="/images/mediaPartners/golab_small.webp" type="image/webp">
+                        <img src="/images/mediaPartners/golab.webp" alt="GoLab Logo">
+                    </picture>
+                </a>
+            </div>
+        </div>
+        
+    </section>
+
+    <section>
+        <h1>Speaking</h1>
+        <div>
+            We would love to hear from you! Whether it is your first talk or your fiftieth, a deep dive or a few
+            minutes on something you have learned, every talk is welcome and every proposal is appreciated.
+            First-time speakers are especially welcome: we are a friendly crowd, and the organisers are happy to
+            help you shape your idea. Just fill in <a href="/speak">our talk proposal form</a> and one of us will
+            be in touch to find a date that suits you.
+        </div>
+        
+    </section>
+
+    <section>
+        <h1>Organisers</h1>
+        <div class="organisers">
+            <div class="organiser">
+                <picture>
+                    <source media="(min-width:401px)" srcset="/images/organisers/alan.webp" type="image/webp">
+                    <source media="(max-width:400px)" srcset="/images/organisers/alan_small.webp" type="image/webp">
+                    <img src="/images/organisers/alan.webp" alt="Alan Bradley">
+                </picture>
+            </div>
+
+            <div class="organiser">
+                <picture>
+                    <source media="(min-width:401px)" srcset="/images/organisers/mark.webp" type="image/webp">
+                    <source media="(max-width:400px)" srcset="/images/organisers/mark_small.webp" type="image/webp">
+                    <img src="/images/organisers/mark.webp" alt="Mark Smith">
+                </picture>
+            </div>
+
+            <div class="organiser">
+                <picture>
+                    <source media="(min-width:401px)" srcset="/images/organisers/destiny.webp" type="image/webp">
+                    <source media="(max-width:400px)" srcset="/images/organisers/destiny_small.webp" type="image/webp">
+                    <img src="/images/organisers/destiny.webp" alt="Destiny Amba">
+                </picture>
+            </div>
+
+            <div class="organiser">
+                <picture>
+                    <source media="(min-width:401px)" srcset="/images/organisers/steph.webp" type="image/webp">
+                    <source media="(max-width:400px)" srcset="/images/organisers/steph_small.webp" type="image/webp">
+                    <img src="/images/organisers/steph.webp" alt="Steph Murray">
+                </picture>
+            </div>
+        </div>
+    </section>
+    </main>
+
+    {{template "footer"}}
+
+</body>
+
+</html>
+{{end}}

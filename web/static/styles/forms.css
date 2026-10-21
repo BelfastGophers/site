@@ -1,0 +1,169 @@
+/* Forms and the organisers' pages, alongside belfastgophers.css. */
+
+.stacked {
+    display: flex;
+    flex-direction: column;
+    max-width: 40em;
+    margin: auto;
+}
+
+.stacked label {
+    margin-top: 1em;
+    font-weight: bold;
+}
+
+.stacked input, .stacked textarea {
+    margin-top: 0.3em;
+    margin-bottom: 0.3em;
+    font-size: 1em;
+    font-family: Arial;
+}
+
+.stacked input[type="submit"] {
+    margin-top: 1.5em;
+    align-self: center;
+}
+
+.stacked textarea, .stacked input[type="number"], .stacked input[type="datetime-local"] {
+    border-radius: 20px;
+    padding: 10px;
+}
+
+fieldset {
+    margin-top: 1.5em;
+    border-radius: 20px;
+}
+
+label.choice {
+    display: block;
+    font-weight: normal;
+}
+
+label.choice input {
+    margin: 0.3em 0.5em 0.3em 0;
+    font-size: 1em;
+}
+
+.hint {
+    font-size: 0.8em;
+    color: #555;
+    margin: 0.2em 0;
+}
+
+.error {
+    color: #b00020;
+    font-size: 0.8em;
+    margin: 0.2em 0;
+}
+
+.videos {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 22em), 1fr));
+    gap: 2em;
+}
+
+.videos figure {
+    margin: 0;
+}
+
+.videos figcaption {
+    font-size: 0.8em;
+    margin-top: 0.5em;
+}
+
+iframe.video {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border: 0;
+}
+
+.swag-gopher {
+    display: block;
+    max-width: 100%;
+    margin: 1em auto;
+}
+
+.notice, #goodluck {
+    text-align: center;
+}
+
+.button {
+    display: inline-block;
+    border-radius: 40px;
+    padding: 25px;
+    background-color: #798ecd;
+    color: white;
+    font-family: 'Game of Thrones';
+    text-decoration: none;
+}
+
+section.wide {
+    width: 85%;
+    font-size: 1.1em;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    text-align: left;
+    padding: 0.5em;
+    border-bottom: 1px solid #ddd;
+}
+
+button.small {
+    padding: 0.4em 1em;
+    font-family: Arial;
+    font-size: 0.8em;
+}
+
+button.danger {
+    background-color: #b00020;
+}
+
+button.link {
+    border: none;
+    background: none;
+    color: #798ecd;
+    padding: 0;
+    font-family: Arial;
+    font-size: 1em;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.organiser-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5em;
+    justify-content: center;
+    align-items: center;
+    padding: 1em;
+    background-color: #eef0f8;
+}
+
+.organiser-nav form {
+    margin: 0;
+}
+
+.winners {
+    text-align: left;
+    display: inline-block;
+}
+
+.proposal {
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 1em;
+}
+
+.proposal .meta {
+    font-size: 0.8em;
+    color: #555;
+}
+
+.proposal .description {
+    white-space: pre-wrap;
+}

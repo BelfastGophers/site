@@ -1,0 +1,6 @@
+# The organisers' pages and sign-in are private; everything else is welcome.
+User-agent: *
+Disallow: /organisers
+Disallow: /auth/
+
+Sitemap: https://belfastgophers.com/sitemap.xml

@@ -1,0 +1,20 @@
+# air rebuilds and restarts the site when its code, templates or static
+# files change: run 'air' in the repository root. Settings come from the
+# environment, as with 'make run'.
+
+[build]
+  cmd = "go build -o ./tmp/site ./cmd/site"
+  entrypoint = ["./tmp/site"]
+  args_bin = ["-log-format", "text", "-shutdown-delay", "0"]
+  # Templates and static files are embedded in the binary, so a change to
+  # them needs a rebuild too.
+  include_ext = ["go", "html", "css", "js", "sql"]
+  exclude_dir = ["tmp", "testdata"]
+  exclude_regex = ["_test\\.go$"]
+  # Stop the site with an interrupt, as Ctrl-C would, so it shuts down
+  # cleanly before the new one starts on the same port.
+  send_interrupt = true
+  kill_delay = "2s"
+
+[misc]
+  clean_on_exit = true

@@ -1,0 +1,202 @@
+# Managed by httpgen. Changes are overwritten by 'go tool httpgen sync'.
+name: httpgen-update
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Three jobs, each on a fresh machine, so that nothing one does to its
+# environment reaches the next. prepare runs the httpgen just fetched, and
+# never holds the app's token; publish holds the token, and runs nothing
+# from the update: it reads prepare's result as data and sends it to the API.
+jobs:
+  # The credentials are optional: without them the service is updated by hand
+  # with 'go tool httpgen sync', and nothing else runs. A job of its own,
+  # because the step reads the app's private key.
+  credentials:
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      configured: ${{ steps.config.outputs.configured }}
+    steps:
+      - name: check credentials
+        id: config
+        env:
+          APP_KEY: ${{ secrets.HTTPGEN_APP_KEY }}
+        run: |
+          if [ -z "$APP_KEY" ]; then
+            echo "::notice::HTTPGEN_APP_KEY is not set; skipping. Update by hand with 'go tool httpgen sync'."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  prepare:
+    needs: credentials
+    if: needs.credentials.outputs.configured == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.update.outputs.changed }}
+      version: ${{ steps.update.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: check module
+        id: guard
+        run: |
+          if grep -q '^module uradical.io/go/httpgen$' go.mod; then
+            echo "::notice::this is httpgen itself; nothing to update"
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # No cache: this job runs code it has just fetched, which must not be
+      # able to leave modules in a cache that CI later restores.
+      - if: steps.guard.outputs.proceed == 'true'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: update httpgen
+        id: update
+        if: steps.guard.outputs.proceed == 'true'
+        run: |
+          go get -tool uradical.io/go/httpgen@latest
+          go tool httpgen sync
+          go mod tidy
+          if [ -d vendor ]; then
+            go mod vendor
+          fi
+
+          version=$(go list -m -f '{{.Version}}' uradical.io/go/httpgen)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "::notice::httpgen $version: already up to date"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # The change, as the file changes the commit API takes, outside the
+      # working tree so that it is not part of the change itself.
+      - name: describe change
+        if: steps.update.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/httpgen-update"
+          mkdir -p "$out"
+          git add -A
+          # For the pull request's description.
+          git diff --cached --no-renames --name-status HEAD > "$out/changes.txt"
+          # Read NUL-separated, so that a path with a space, or one git
+          # would quote, arrives as it is.
+          : > "$out/additions.jsonl"
+          : > "$out/deletions.jsonl"
+          git diff --cached --no-renames --name-status -z HEAD |
+            while IFS= read -r -d '' status && IFS= read -r -d '' file; do
+              if [ "$status" = D ]; then
+                jq -n --arg path "$file" '{path: $path}' >> "$out/deletions.jsonl"
+              else
+                jq -n --arg path "$file" --arg contents "$(base64 -w0 "$file")" \
+                  '{path: $path, contents: $contents}' >> "$out/additions.jsonl"
+              fi
+            done
+          jq -s . "$out/additions.jsonl" > "$out/additions.json"
+          jq -s . "$out/deletions.jsonl" > "$out/deletions.json"
+          rm "$out/additions.jsonl" "$out/deletions.jsonl"
+
+      - if: steps.update.outputs.changed == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: httpgen-update
+          path: ${{ runner.temp }}/httpgen-update
+          retention-days: 1
+          if-no-files-found: error
+
+  # One commit, created through the API so that GitHub signs it and it is
+  # authored by the app rather than by whoever's token was lying around.
+  publish:
+    needs: prepare
+    if: needs.prepare.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - id: token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.HTTPGEN_APP_ID }}
+          private-key: ${{ secrets.HTTPGEN_APP_KEY }}
+          # Only what opening the pull request needs: the managed files
+          # include workflows, which take a permission of their own.
+          permission-contents: write
+          permission-pull-requests: write
+          permission-workflows: write
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: httpgen-update
+          path: ${{ runner.temp }}/httpgen-update
+
+      # No checkout, no git and no go: everything from prepare is data. The
+      # version is checked because it names the branch, and the commit is
+      # made on this run's own commit rather than one prepare names.
+      - name: open pull request
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          BASE: ${{ github.ref_name }}
+          HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          # The whole value, not line by line as grep would.
+          semver='^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
+          if ! [[ $VERSION =~ $semver ]]; then
+            # Not echoed: it came from prepare, and could carry a workflow
+            # command.
+            echo "::error::prepare reported something other than a module version"
+            exit 1
+          fi
+          in="$RUNNER_TEMP/httpgen-update"
+          branch="httpgen/$VERSION"
+
+          if gh api "repos/$GH_REPO/git/ref/heads/$branch" >/dev/null 2>&1; then
+            gh api -X PATCH "repos/$GH_REPO/git/refs/heads/$branch" \
+              -f sha="$HEAD" -F force=true >/dev/null
+          else
+            gh api -X POST "repos/$GH_REPO/git/refs" \
+              -f ref="refs/heads/$branch" -f sha="$HEAD" >/dev/null
+          fi
+
+          jq -n \
+            --arg repo "$GH_REPO" \
+            --arg branch "$branch" \
+            --arg head "$HEAD" \
+            --arg message "httpgen $VERSION" \
+            --slurpfile additions "$in/additions.json" \
+            --slurpfile deletions "$in/deletions.json" \
+            '{query: "mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { url } } }",
+              variables: {input: {
+                branch: {repositoryNameWithOwner: $repo, branchName: $branch},
+                message: {headline: $message},
+                expectedHeadOid: $head,
+                fileChanges: {additions: $additions[0], deletions: $deletions[0]}}}}' > "$in/payload.json"
+          gh api graphql --input "$in/payload.json" --jq '.data.createCommitOnBranch.commit.url'
+
+          if [ -z "$(gh pr list --head "$branch" --state open --json number --jq '.[].number')" ]; then
+            body=$(printf 'Updates httpgen to %s and syncs its managed files.\n\nChanged:\n\n```\n%s\n```\n\nRelease notes: https://github.com/uradical/httpgen/releases/tag/%s\n' \
+              "$VERSION" "$(cat "$in/changes.txt")" "$VERSION")
+            gh pr create --base "$BASE" --head "$branch" --title "httpgen $VERSION" --body "$body"
+          else
+            echo "::notice::pull request for $branch already open; updated it"
+          fi

@@ -1,0 +1,12 @@
+{{define "content"}}
+<section id="enter">
+    <div>To enter tonight's raffle please give us your name and email address</div>
+    <form action="/raffle" method="post">
+        {{with .Errors.name}}<p class="error" id="name-error">{{.}}</p>{{end}}
+        <input type="text" name="name" placeholder="Name" value="{{.Form.Name}}" maxlength="100" autocomplete="name" required><br>
+        {{with .Errors.email}}<p class="error" id="email-error">{{.}}</p>{{end}}
+        <input type="email" name="email" placeholder="Email" value="{{.Form.Email}}" maxlength="254" autocomplete="email" required><br>
+        <input type="submit" value="Enter">
+    </form>
+</section>
+{{end}}

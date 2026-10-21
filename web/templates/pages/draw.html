@@ -1,0 +1,26 @@
+{{define "content"}}
+<section id="draw">
+    <h1>{{.Event.Title}}</h1>
+    <p>{{(local .Event.StartsAt).Format "Monday 2 January 2006"}}</p>
+    <p>{{.Entries}} {{if eq .Entries 1}}entry{{else}}entries{{end}}</p>
+
+    {{with .Winners}}
+    <div id="winner">{{(index . 0).Name}}</div>
+    {{end}}
+
+    {{if gt .Left 0}}
+    <form action="/organisers/events/{{.Event.ID}}/draw" method="post">
+        <button type="submit">Draw</button>
+    </form>
+    {{else if gt .Entries 0}}
+    <p>Everyone has won.</p>
+    {{end}}
+
+    {{with .Winners}}
+    <h2>Winners</h2>
+    <ol class="winners" reversed>
+        {{range .}}<li>{{.Name}} &lt;{{.Email}}&gt;</li>{{end}}
+    </ol>
+    {{end}}
+</section>
+{{end}}

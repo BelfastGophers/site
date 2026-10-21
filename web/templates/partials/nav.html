@@ -1,0 +1,9 @@
+{{define "nav"}}
+<nav class="site-nav">
+    <a href="/" {{if eq .Path "/"}}aria-current="page"{{end}}>Home</a>
+    <a href="/sponsors" {{if eq .Path "/sponsors"}}aria-current="page"{{end}}>Sponsors</a>
+    <a href="/speak" {{if eq .Path "/speak"}}aria-current="page"{{end}}>Speak</a>
+    <a href="/videos" {{if eq .Path "/videos"}}aria-current="page"{{end}}>Videos</a>
+    <a href="/swag" {{if eq .Path "/swag"}}aria-current="page"{{end}}>Swag</a>
+</nav>
+{{end}}
