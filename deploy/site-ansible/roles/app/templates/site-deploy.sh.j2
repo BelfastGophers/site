@@ -1,0 +1,43 @@
+#!/bin/bash
+# Managed by Ansible.
+# Forced command for the deploy key. Reads a binary on stdin:
+#   ssh deploy@host deploy < site
+set -euo pipefail
+umask 002
+
+root={{ site_root }}
+releases="$root/releases"
+keep=5
+
+case "${SSH_ORIGINAL_COMMAND:-}" in
+  deploy)
+    dest="$releases/site-$(date +%Y%m%d%H%M%S)"
+    tmp="$dest.tmp"
+    trap 'rm -f "$tmp"' EXIT
+
+    cat > "$tmp"
+    if [ ! -s "$tmp" ] || [ "$(head -c 4 "$tmp" | tail -c 3)" != "ELF" ]; then
+      echo "upload is empty or not a Linux binary" >&2
+      exit 1
+    fi
+
+    chmod 755 "$tmp"
+    mv "$tmp" "$dest"
+    ln -sfn "$dest" "$root/current.tmp"
+    mv -T "$root/current.tmp" "$root/current"     # atomic swap
+    sudo /usr/bin/systemctl restart {{ site_name }}.service
+
+    # Keep the newest releases, never the one currently live.
+    live="$(readlink -f "$root/current")"
+    ls -1t "$releases" | tail -n +$((keep + 1)) | while read -r f; do
+      [ "$releases/$f" = "$live" ] && continue
+      rm -f -- "$releases/$f"
+    done
+
+    echo "deployed $dest"
+    ;;
+  *)
+    echo "not allowed" >&2
+    exit 1
+    ;;
+esac

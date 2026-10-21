@@ -148,14 +148,27 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 		}, st),
 	}
 
-	return serve.Run(ctx, serve.Config{
+	server := serve.Config{
 		Addr:      net.JoinHostPort(cfg.host, cfg.port),
 		Handler:   endpoints.NewServer(deps),
 		Logger:    logger,
 		Readiness: deps.Readiness,
 		DrainFor:  cfg.drainFor,
 		PprofAddr: cfg.pprofAddr,
-	})
+	}
+	// With a domain, the site serves its own HTTPS, and plain HTTP only
+	// redirects to it. Without, as in development, it is plain HTTP.
+	if cfg.domain != "" {
+		certs := certificates(cfg.domain, cfg.certDir)
+		stop, err := servePlain(ctx, net.JoinHostPort(cfg.host, cfg.httpPort), certs.HTTPHandler(toHTTPS(cfg.domain)))
+		if err != nil {
+			return err
+		}
+		defer stop()
+		server.TLSConfig = certs.TLSConfig()
+		server.Handler = secure(cfg.domain, server.Handler)
+	}
+	return serve.Run(ctx, server)
 }
 
 // job is a piece of upkeep: bringing data in from Meetup or YouTube, or
@@ -202,6 +215,8 @@ type config struct {
 	maxBody             int64
 	drainFor            time.Duration
 	pprofAddr           string
+	domain, certDir     string
+	httpPort            string
 
 	db                                 string
 	baseURL                            string
@@ -237,6 +252,9 @@ func parseConfig(args []string, getenv func(string) string, stderr io.Writer) (c
 	flags.Int64Var(&cfg.maxBody, "max-body-size", rest.DefaultMaxBody, "largest request body a route accepts, in bytes, unless the route sets its own")
 	flags.DurationVar(&cfg.drainFor, "shutdown-delay", 5*time.Second, "how long /ready reports draining before the server stops accepting connections; at least the time a load balancer takes to notice")
 	flags.StringVar(&cfg.pprofAddr, "pprof-addr", "", "address to serve runtime profiles on, such as localhost:6060; off when empty")
+	flags.StringVar(&cfg.domain, "domain", "", "domain to serve HTTPS for, and its www, with certificates from Let's Encrypt: belfastgophers.com in production, with -port 443; plain HTTP when empty")
+	flags.StringVar(&cfg.certDir, "cert-dir", "certs", "directory the Let's Encrypt certificates are kept in, when -domain is set; it must survive restarts")
+	flags.StringVar(&cfg.httpPort, "http-port", "80", "port plain HTTP is redirected to HTTPS from, when -domain is set")
 	flags.StringVar(&cfg.db, "db", "site.db", "path of the SQLite database, created if it does not exist")
 	flags.StringVar(&cfg.baseURL, "base-url", "http://localhost:8080", "address the site is reached at, for GitHub to return organisers to: https://belfastgophers.com in production")
 	flags.StringVar(&cfg.githubOrg, "github-org", "BelfastGophers", "GitHub organisation whose members are organisers")

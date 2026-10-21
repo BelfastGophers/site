@@ -8,6 +8,7 @@ package serve
 import (
 	"cmp"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -52,6 +53,11 @@ type Config struct {
 	// PprofAddr, if set, serves runtime profiles on a listener of its own.
 	// It must be a loopback address, such as localhost:6060.
 	PprofAddr string
+
+	// TLSConfig, if set, serves HTTPS on Addr, with the certificates it
+	// gives: one from autocert, say. Unset, Addr serves plain HTTP, for a
+	// service behind a proxy or load balancer that ends TLS.
+	TLSConfig *tls.Config
 }
 
 // Run serves until it is told to stop, then shuts down gracefully, and
@@ -100,14 +106,15 @@ func run(ctx context.Context, cfg Config, signals <-chan os.Signal) error {
 		// A sixteenth of net/http's default, and still more than an API
 		// needs. The default lets one request carry a megabyte of headers.
 		MaxHeaderBytes: maxHeaderBytes,
+		TLSConfig:      cfg.TLSConfig,
 		// WriteTimeout is deliberately unset: it breaks streaming responses.
 		// Put a deadline on a slow route with http.TimeoutHandler instead.
 	}
 
 	errCh := make(chan error, 1)
 	go func() {
-		logger.Info("listening", "addr", ln.Addr().String())
-		if err := srv.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
+		logger.Info("listening", "addr", ln.Addr().String(), "tls", cfg.TLSConfig != nil)
+		if err := serve(srv, ln); !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 		}
 	}()
@@ -119,6 +126,15 @@ func run(ctx context.Context, cfg Config, signals <-chan os.Signal) error {
 	case <-ctx.Done():
 	}
 	return shutdown(ctx, srv, &conns, cfg.Readiness, cfg.DrainFor, shutdownTimeout, signals, logger)
+}
+
+// serve serves srv on ln, over TLS when srv has a TLS config. The
+// certificates come from that config, so ServeTLS is given no files.
+func serve(srv *http.Server, ln net.Listener) error {
+	if srv.TLSConfig != nil {
+		return srv.ServeTLS(ln, "", "")
+	}
+	return srv.Serve(ln)
 }
 
 // maxHeaderBytes caps the size of a request's headers.

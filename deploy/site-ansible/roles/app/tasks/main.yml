@@ -1,0 +1,144 @@
+# --- Groups and users -----------------------------------------------------
+- name: Create service user (runs the binary, cannot modify it)
+  ansible.builtin.user:
+    name: "{{ site_name }}"
+    system: true
+    create_home: false
+    shell: /sbin/nologin
+
+- name: Create CI deploy user (no password, forced command only)
+  ansible.builtin.user:
+    name: "{{ deploy_user }}"
+    groups: "{{ site_group }}"
+    append: true
+    shell: /bin/bash
+    password: "!"
+
+# --- Release directories --------------------------------------------------
+- name: Create site directories (setgid so new files get the group)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: "{{ site_group }}"
+    mode: "2775"
+  loop:
+    - "{{ site_root }}"
+    - "{{ site_root }}/releases"
+
+- name: Label releases as executables for SELinux
+  community.general.sefcontext:
+    target: "{{ site_root }}/releases(/.*)?"
+    setype: bin_t
+  when: ansible_selinux.status == 'enabled'
+
+# --- Deploy path ----------------------------------------------------------
+- name: Install deploy script
+  ansible.builtin.template:
+    src: site-deploy.sh.j2
+    dest: /usr/local/bin/site-deploy
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Allow the deploy group to restart the service, nothing else
+  ansible.builtin.template:
+    src: sudoers.j2
+    dest: "/etc/sudoers.d/{{ site_group }}"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: visudo -cf %s
+
+- name: Authorise CI deploy key with a forced command
+  ansible.posix.authorized_key:
+    user: "{{ deploy_user }}"
+    key: "{{ lookup('ansible.builtin.file', deploy_pubkey_file) }}"
+    key_options: 'restrict,command="/usr/local/bin/site-deploy"'
+    exclusive: true
+  when: deploy_pubkey_file is file
+
+# --- Secrets and service --------------------------------------------------
+- name: Create config directory
+  ansible.builtin.file:
+    path: /etc/site
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Write environment file (root-only)
+  ansible.builtin.template:
+    src: site.env.j2
+    dest: /etc/site/site.env
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  notify: Restart site
+
+- name: Install systemd unit
+  ansible.builtin.template:
+    src: site.service.j2
+    dest: "/etc/systemd/system/{{ site_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart site
+
+# --- First release (only on a fresh server) -------------------------------
+- name: Check for an existing release
+  ansible.builtin.stat:
+    path: "{{ site_root }}/current"
+  register: site_current
+
+- name: Upload initial release
+  ansible.builtin.copy:
+    src: "{{ site_binary_src }}"
+    dest: "{{ site_root }}/releases/site-initial"
+    owner: root
+    group: "{{ site_group }}"
+    mode: "0755"
+  when:
+    - not site_current.stat.exists
+    - site_binary_src | length > 0
+
+- name: Point current at initial release
+  ansible.builtin.file:
+    src: "{{ site_root }}/releases/site-initial"
+    dest: "{{ site_root }}/current"
+    state: link
+  when:
+    - not site_current.stat.exists
+    - site_binary_src | length > 0
+  register: site_initial
+
+- name: Record whether there is a release to run
+  ansible.builtin.set_fact:
+    site_has_release: "{{ site_current.stat.exists or site_initial is changed }}"
+
+# --- SELinux labels for everything created above --------------------------
+- name: Restore SELinux labels
+  ansible.builtin.command: "restorecon -Rv {{ item }}"
+  args:
+    removes: "{{ item }}"          # skip paths that do not exist
+  register: restorecon
+  changed_when: restorecon.stdout | length > 0
+  loop: >-
+    {{ [site_root, '/home/' ~ deploy_user ~ '/.ssh']
+       + (['/home/'] | product(users | map(attribute='name')) | map('join')
+          | product(['/.ssh']) | map('join') | list) }}
+  when: ansible_selinux.status == 'enabled'
+
+# --- Run it ---------------------------------------------------------------
+- name: Enable the service
+  ansible.builtin.systemd_service:
+    name: "{{ site_name }}"
+    enabled: true
+    daemon_reload: true
+
+- name: Start the service
+  ansible.builtin.systemd_service:
+    name: "{{ site_name }}"
+    state: started
+  when: site_has_release | bool

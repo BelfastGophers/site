@@ -1,0 +1,44 @@
+- name: Provision the Belfast Gophers web server
+  hosts: web
+  become: true
+
+  pre_tasks:
+    - name: Every user has a key file
+      ansible.builtin.assert:
+        that: (playbook_dir ~ '/files/keys/' ~ item.name ~ '.pub') is file
+        fail_msg: "Missing files/keys/{{ item.name }}.pub"
+        quiet: true
+      loop: "{{ users }}"
+      loop_control: { label: "{{ item.name }}" }
+
+    - name: Every admin has a sudo password hash
+      ansible.builtin.assert:
+        that: user_password_hashes[item.name] | default('') | length > 0
+        fail_msg: "No hash for {{ item.name }} in vault_user_password_hashes"
+        quiet: true
+      loop: "{{ users | selectattr('admin', 'defined') | selectattr('admin') }}"
+      loop_control: { label: "{{ item.name }}" }
+
+    - name: Refuse to run without an admin (root login gets disabled)
+      ansible.builtin.assert:
+        that:
+          - users | selectattr('admin', 'defined') | selectattr('admin') | list | length > 0
+          - users | map(attribute='name') | intersect(removed_users) | length == 0
+        fail_msg: >-
+          At least one user needs admin: true, and nobody can be in both
+          users and removed_users.
+
+    - name: Check HTTPS settings agree
+      ansible.builtin.assert:
+        that:
+          - site_base_url.startswith('https://')
+          - site_port | string == '443'
+        fail_msg: >-
+          With site_domain set, site_port should be 443 and site_base_url
+          should start with https://, or GitHub sign-in will return to the
+          wrong address.
+      when: site_domain | default('') | length > 0
+
+  roles:
+    - base
+    - app

@@ -1,0 +1,6 @@
+- name: Restart site
+  ansible.builtin.systemd_service:
+    name: "{{ site_name }}"
+    state: restarted
+    daemon_reload: true
+  when: site_has_release | default(false) | bool

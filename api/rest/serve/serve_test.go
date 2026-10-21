@@ -408,6 +408,36 @@ func TestRunStopsOnSignal(t *testing.T) {
 	waitForLog(t, logs, "shutdown complete")
 }
 
+// TestRunTLS checks that a TLS config serves HTTPS, with its certificate.
+func TestRunTLS(t *testing.T) {
+	t.Parallel()
+	// httptest makes a certificate, and a client that trusts it, but its
+	// server is not needed.
+	certs := httptest.NewTLSServer(http.NotFoundHandler())
+	certs.Close()
+	signals := make(chan os.Signal, 2)
+	addr, _, result := startServe(t, Config{TLSConfig: certs.TLS}, signals)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://"+addr+"/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := certs.Client().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := resp.Body.Close(); err != nil {
+		t.Error(err)
+	}
+	if resp.StatusCode != http.StatusNotFound || resp.TLS == nil {
+		t.Errorf("status = %d, TLS = %v; want the handler's 404 over TLS", resp.StatusCode, resp.TLS != nil)
+	}
+	signals <- syscall.SIGTERM
+	if err := await(t, result); err != nil {
+		t.Errorf("run = %v, want a clean stop", err)
+	}
+}
+
 func TestRunListenError(t *testing.T) {
 	t.Parallel()
 	err := run(t.Context(), Config{Addr: "256.0.0.1:0", Handler: http.NotFoundHandler(), Logger: slog.New(slog.DiscardHandler)}, nil)

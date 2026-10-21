@@ -129,7 +129,7 @@ func status(t *testing.T, url string) int {
 func TestParseConfig(t *testing.T) {
 	t.Parallel()
 	github := map[string]string{"GITHUB_CLIENT_ID": "client", "GITHUB_CLIENT_SECRET": "secret"}
-	env := map[string]string{"PORT": "9000", "SHUTDOWN_DELAY": "1s", "LOG_LEVEL": "debug", "DB": "/var/lib/site/site.db"}
+	env := map[string]string{"PORT": "9000", "SHUTDOWN_DELAY": "1s", "LOG_LEVEL": "debug", "DB": "/var/lib/site/site.db", "DOMAIN": "belfastgophers.com", "CERT_DIR": "/var/lib/site/certs"}
 	maps.Copy(env, github)
 	cfg, err := parseConfig([]string{"svc", "-log-level", "warn"}, func(key string) string { return env[key] }, io.Discard)
 	if err != nil {
@@ -137,6 +137,7 @@ func TestParseConfig(t *testing.T) {
 	}
 	want := config{
 		port: "9000", logLevel: "warn", logFormat: "json", maxBody: rest.DefaultMaxBody, drainFor: time.Second,
+		domain: "belfastgophers.com", certDir: "/var/lib/site/certs", httpPort: "80",
 		db: "/var/lib/site/site.db", baseURL: "http://localhost:8080", githubOrg: "BelfastGophers", meetupFeed: "https://www.meetup.com/belfast-gophers/events/ical/", youtubeFeed: "https://www.youtube.com/feeds/videos.xml?channel_id=UClH4m_4FPMOYYw7hGKHS1UA",
 		githubClientID: "client", githubClientSecret: "secret",
 	}
@@ -154,6 +155,7 @@ func TestParseConfig(t *testing.T) {
 	}
 	want = config{
 		port: "8080", logLevel: "info", logFormat: "json", maxBody: rest.DefaultMaxBody, drainFor: 5 * time.Second,
+		certDir: "certs", httpPort: "80",
 		db: "site.db", baseURL: "http://localhost:8080", githubOrg: "BelfastGophers", meetupFeed: "https://www.meetup.com/belfast-gophers/events/ical/", youtubeFeed: "https://www.youtube.com/feeds/videos.xml?channel_id=UClH4m_4FPMOYYw7hGKHS1UA",
 		githubClientID: "client", githubClientSecret: "secret",
 	}

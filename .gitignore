@@ -8,3 +8,8 @@
 
 # air's builds.
 tmp/
+
+# Let's Encrypt's certificates, and the site's key for its account.
+certs/
+
+deploy/site-ansible/group_vars/all/vault.yml

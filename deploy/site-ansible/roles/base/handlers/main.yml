@@ -1,0 +1,15 @@
+- name: Restart systemd-resolved
+  ansible.builtin.systemd_service:
+    name: systemd-resolved
+    state: restarted
+
+- name: Validate sshd config
+  ansible.builtin.command: sshd -t
+  changed_when: false
+  listen: Restart sshd
+
+- name: Restart sshd service
+  ansible.builtin.systemd_service:
+    name: sshd
+    state: restarted
+  listen: Restart sshd

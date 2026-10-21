@@ -1,0 +1,50 @@
+# --- Server ---------------------------------------------------------------
+server_hostname: belfastgophers-web1
+
+# --- People -----------------------------------------------------------------
+# One entry per person. Their public keys go in files/keys/<name>.pub, one
+# key per line; that file is the complete list, so removing a line revokes it.
+#   admin:    member of wheel, full sudo (needs a hash in the vault)
+#   deployer: member of the site group, can upload releases and restart it
+users:
+  - name: alan
+    admin: true
+    deployer: true
+
+# Accounts to delete, home directory included. Remove someone from `users`
+# AND list them here; dropping them from `users` alone leaves the account.
+removed_users: []
+
+# Admins' sudo password hashes live in the vault (openssl passwd -6).
+# The vault is the source of truth: a password changed on the server is
+# reset on the next run, so change it in the vault instead.
+user_password_hashes: "{{ vault_user_password_hashes }}"
+
+# --- Site -----------------------------------------------------------------
+site_name: site                     # service name, system user, state dir
+site_description: BelfastGophers_site
+site_group: gophers                 # people (and CI) allowed to deploy
+site_root: /opt/site
+
+# HTTPS via Let's Encrypt, served by the binary itself. The domain and its
+# www must resolve to this server before the first start. Set site_domain
+# to "" to serve plain HTTP on site_port instead.
+site_domain: belfastgophers.com
+site_port: 443                      # 80 when site_domain is empty
+site_http_port: 80                  # redirects to HTTPS
+site_base_url: "https://{{ site_domain }}"
+
+site_shutdown_delay: 0s             # no load balancer, so no drain needed
+site_extra_args: ""                 # any further flags for the binary
+
+# Absolute path to a locally built binary. Uploaded only when the server
+# has no release yet; after that, deploys go through site-deploy.
+site_binary_src: ""
+
+# Written to /etc/site/site.env (root-only). Keep the values in the vault.
+site_env: "{{ vault_site_env }}"
+
+# --- CI deploy user -------------------------------------------------------
+deploy_user: deploy
+# Public half of the GitHub Actions key. Skipped if the file is absent.
+deploy_pubkey_file: "{{ playbook_dir }}/files/gh_deploy.pub"

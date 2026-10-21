@@ -1,0 +1,77 @@
+- name: Set hostname
+  ansible.builtin.hostname:
+    name: "{{ server_hostname }}"
+  when: server_hostname | default('') | length > 0
+
+- name: Install packages
+  ansible.builtin.package:
+    name:
+      - policycoreutils-python-utils   # semanage / sefcontext
+      - sqlite                         # online backups of site.db
+    state: present
+
+# --- systemd-resolved: stop listening for LLMNR/mDNS on public interfaces --
+- name: Create resolved drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+    mode: "0755"
+
+- name: Disable LLMNR and mDNS
+  ansible.builtin.copy:
+    dest: /etc/systemd/resolved.conf.d/no-llmnr.conf
+    mode: "0644"
+    content: |
+      # Managed by Ansible
+      [Resolve]
+      LLMNR=no
+      MulticastDNS=no
+  notify: Restart systemd-resolved
+
+# --- People -----------------------------------------------------------------
+- name: Create the site group
+  ansible.builtin.group:
+    name: "{{ site_group }}"
+
+# Group membership is set exactly (append: false), so taking admin or
+# deployer away from someone in vars.yml removes it on the server too.
+- name: Create users
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    shell: /bin/bash
+    groups: >-
+      {{ (['wheel'] if item.admin | default(false) else [])
+         + ([site_group] if item.deployer | default(false) else []) }}
+    append: false
+    password: "{{ user_password_hashes[item.name] | default(omit) }}"
+    update_password: always
+  loop: "{{ users }}"
+  loop_control: { label: "{{ item.name }}" }
+
+- name: Set authorised keys (exactly the keys in files/keys/<name>.pub)
+  ansible.posix.authorized_key:
+    user: "{{ item.name }}"
+    key: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/files/keys/' ~ item.name ~ '.pub') }}"
+    exclusive: true
+  loop: "{{ users }}"
+  loop_control: { label: "{{ item.name }}" }
+
+- name: Remove departed users
+  ansible.builtin.user:
+    name: "{{ item }}"
+    state: absent
+    remove: true
+  loop: "{{ removed_users }}"
+
+# --- sshd: keys only, no root. Applied by handler at the end of the run. ---
+- name: Harden sshd
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/10-hardening.conf
+    mode: "0600"
+    content: |
+      # Managed by Ansible. Named 10- so it wins over 50-redhat.conf
+      # and any 50-cloud-init.conf (first value read is used).
+      PermitRootLogin no
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+  notify: Restart sshd
