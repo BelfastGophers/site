@@ -30,7 +30,7 @@
   community.general.sefcontext:
     target: "{{ site_root }}/releases(/.*)?"
     setype: bin_t
-  when: ansible_selinux.status == 'enabled'
+  when: ansible_facts['selinux'].status == 'enabled'
 
 # --- Deploy path ----------------------------------------------------------
 - name: Install deploy script
@@ -128,7 +128,7 @@
     {{ [site_root, '/home/' ~ deploy_user ~ '/.ssh']
        + (['/home/'] | product(users | map(attribute='name')) | map('join')
           | product(['/.ssh']) | map('join') | list) }}
-  when: ansible_selinux.status == 'enabled'
+  when: ansible_facts['selinux'].status == 'enabled'
 
 # --- Run it ---------------------------------------------------------------
 - name: Enable the service

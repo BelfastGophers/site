@@ -1,0 +1,47 @@
+# Managed by Ansible
+# The site's logs, from journald to Better Stack. The site writes one JSON
+# object per line; each becomes an event with the object's fields, and the
+# host it came from.
+data_dir: /var/lib/vector
+
+# The Better Stack token, from /etc/vector/secrets/betterstack_token.
+secret:
+  local:
+    type: directory
+    path: /etc/vector/secrets
+
+sources:
+  site:
+    type: journald
+    include_units: ["{{ site_name }}.service"]
+
+transforms:
+  site_fields:
+    type: remap
+    inputs: [site]
+    # A line that is not JSON, such as a panic's trace, is sent as it is.
+    # Better Stack takes an event's time from dt: the time the site logged
+    # the line, or, for one that is not JSON, when the journal recorded it.
+    source: |
+      journalled = del(.timestamp)
+      parsed, err = parse_json(.message)
+      if err == null && is_object(parsed) {
+        . = merge({"host": .host}, object!(parsed))
+      }
+      .dt = journalled
+      if exists(.time) {
+        .dt = del(.time)
+      }
+
+sinks:
+  betterstack:
+    type: http
+    inputs: [site_fields]
+    uri: "https://{{ betterstack_ingest_host }}/"
+    method: post
+    compression: gzip
+    encoding:
+      codec: json
+    auth:
+      strategy: bearer
+      token: "SECRET[local.betterstack_token]"
