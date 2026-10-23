@@ -1,7 +1,7 @@
 # Managed by Ansible
-# The site's logs, from journald to Better Stack. The site writes one JSON
-# object per line; each becomes an event with the object's fields, and the
-# host it came from.
+# Logs from journald to Better Stack: the site's, and those of automatic
+# updates, which say when a reboot is required. Every event has the host and
+# systemd unit it came from.
 data_dir: /var/lib/vector
 
 # The Better Stack token, from /etc/vector/secrets/betterstack_token.
@@ -14,29 +14,42 @@ sources:
   site:
     type: journald
     include_units: ["{{ site_name }}.service"]
+  updates:
+    type: journald
+    include_units: ["dnf5-automatic.service", "reboot-reminder.service"]
 
 transforms:
   site_fields:
     type: remap
     inputs: [site]
-    # A line that is not JSON, such as a panic's trace, is sent as it is.
-    # Better Stack takes an event's time from dt: the time the site logged
-    # the line, or, for one that is not JSON, when the journal recorded it.
+    # The site writes one JSON object per line, which becomes an event with
+    # the object's fields. A line that is not JSON, such as a panic's
+    # trace, is sent as it is. Better Stack takes an event's time from dt:
+    # the time the site logged the line, or, for one that is not JSON, when
+    # the journal recorded it.
     source: |
       journalled = del(.timestamp)
       parsed, err = parse_json(.message)
       if err == null && is_object(parsed) {
-        . = merge({"host": .host}, object!(parsed))
+        . = merge({"host": .host, "unit": ._SYSTEMD_UNIT}, object!(parsed))
       }
       .dt = journalled
       if exists(.time) {
         .dt = del(.time)
       }
+  update_fields:
+    type: remap
+    inputs: [updates]
+    # Plain text, from dnf5 automatic and reboot-required, kept to the line
+    # as msg, as the site's events have it. A reboot that is owed is a msg
+    # starting "reboot required" or "reboot still required".
+    source: |
+      . = {"host": .host, "unit": ._SYSTEMD_UNIT, "msg": .message, "dt": .timestamp}
 
 sinks:
   betterstack:
     type: http
-    inputs: [site_fields]
+    inputs: [site_fields, update_fields]
     uri: "https://{{ betterstack_ingest_host }}/"
     method: post
     compression: gzip

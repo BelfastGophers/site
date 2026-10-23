@@ -1,5 +1,8 @@
+# In check mode Vector may not really be installed, so it has no unit to
+# restart. A real run is never excused.
 - name: Restart vector
   ansible.builtin.systemd_service:
     name: vector
     state: restarted
     daemon_reload: true
+  ignore_errors: "{{ ansible_check_mode }}"

@@ -1,0 +1,26 @@
+#!/bin/sh
+# Managed by Ansible.
+# dnf5 automatic's reboot_command: it runs this, rather than rebooting, when
+# the updates it applied include a package that needs a reboot, such as the
+# kernel. It records that a reboot is owed, shows it at login, and logs it
+# for Better Stack. Everything it writes is under /run, which is cleared at
+# boot, so rebooting clears it too.
+set -eu
+
+now=$(date -u +%FT%TZ)
+running=$(uname -r)
+newest=$(rpm -q --last kernel-core | head -n 1 | awk '{print $1}')
+newest=${newest#kernel-core-}
+
+cat > /run/reboot-required <<EOF
+Reboot required: the updates applied at $now include a package that needs one.
+Running kernel: $running
+Newest kernel:  $newest
+What changed:   dnf history info last
+EOF
+
+mkdir -p /run/motd.d
+printf 'Reboot required: updates installed %s. See /run/reboot-required.\n' "$now" \
+    > /run/motd.d/reboot-required
+
+logger -t reboot-required "reboot required: updates applied at $now, running kernel $running, newest $newest"

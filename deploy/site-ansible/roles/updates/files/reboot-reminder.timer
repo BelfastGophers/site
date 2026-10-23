@@ -1,0 +1,11 @@
+# Managed by Ansible
+# Daily, after dnf5 automatic's run at 06:00 plus up to an hour.
+[Unit]
+Description=Daily reminder that a reboot is required
+
+[Timer]
+OnCalendar=*-*-* 09:00:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

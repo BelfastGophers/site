@@ -1,0 +1,56 @@
+# --- Automatic updates ----------------------------------------------------
+# dnf5 automatic applies updates daily, from its timer. A reboot is never
+# done for you: when one is needed, reboot-required records it, shows it at
+# login, and logs it, which the logs role sends to Better Stack.
+- name: Install dnf5 automatic
+  ansible.builtin.package:
+    name: dnf5-plugin-automatic
+    state: present
+
+- name: Install the reboot-required script
+  ansible.builtin.copy:
+    src: reboot-required
+    dest: /usr/local/sbin/reboot-required
+    owner: root
+    group: root
+    mode: "0755"
+
+# Only the overrides: the defaults are in
+# /usr/share/dnf5/dnf5-plugins/automatic.conf.
+- name: Configure dnf5 automatic
+  ansible.builtin.copy:
+    dest: /etc/dnf/automatic.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible
+      [commands]
+      apply_updates = yes
+      reboot = when-needed
+      reboot_command = /usr/local/sbin/reboot-required
+
+- name: Install the reboot reminder
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - reboot-reminder.service
+    - reboot-reminder.timer
+
+# In check mode the package is not really installed, nor the reminder's
+# units written, so there are no timers yet, which systemd_service fails on
+# even in check mode. A real run is never excused.
+- name: Enable the timers
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  loop:
+    - dnf5-automatic.timer
+    - reboot-reminder.timer
+  ignore_errors: "{{ ansible_check_mode }}"

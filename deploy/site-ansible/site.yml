@@ -42,6 +42,7 @@
   roles:
     - base
     - app
+    - updates
     - role: logs
       when:
         - betterstack_ingest_host | length > 0
