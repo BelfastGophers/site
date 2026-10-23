@@ -1,0 +1,83 @@
+# --- Vector: ships the site's logs from journald to Better Stack ----------
+# The repository is the one Vector's own setup script (setup.vector.dev)
+# adds, signed with Datadog's RPM keys. Written even in check mode, so that
+# --check can show what installing Vector would do.
+- name: Add the Vector repository
+  ansible.builtin.yum_repository:
+    name: vector
+    description: Vector
+    baseurl: https://yum.vector.dev/stable/vector-0/$basearch/
+    gpgcheck: true
+    repo_gpgcheck: true
+    gpgkey:
+      - https://keys.datadoghq.com/DATADOG_RPM_KEY_CURRENT.public
+      - https://keys.datadoghq.com/DATADOG_RPM_KEY_B01082D3.public
+  check_mode: false
+
+- name: Install Vector
+  ansible.builtin.package:
+    name: vector
+    state: present
+
+- name: Let Vector read the journal
+  ansible.builtin.user:
+    name: vector
+    groups: systemd-journal
+    append: true
+  notify: Restart vector
+
+# The token is a Vector secret: a file of its own, readable only by Vector,
+# that the config names as SECRET[local.betterstack_token]. Vector does not
+# expand environment variables in its config unless told to, dangerously.
+- name: Create Vector's secrets directory
+  ansible.builtin.file:
+    path: /etc/vector/secrets
+    state: directory
+    owner: vector
+    group: vector
+    mode: "0700"
+
+# No trailing newline: Vector would send it as part of the token.
+- name: Write the Better Stack token
+  ansible.builtin.copy:
+    dest: /etc/vector/secrets/betterstack_token
+    owner: vector
+    group: vector
+    mode: "0400"
+    content: "{{ betterstack_token | trim }}"
+  no_log: true
+  notify: Restart vector
+
+# The package's unit reads this file. It held the token before the token
+# became a secret, so it is rewritten rather than left with a copy.
+- name: Clear Vector's environment file
+  ansible.builtin.copy:
+    dest: /etc/default/vector
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible. Vector's token is in /etc/vector/secrets.
+  notify: Restart vector
+
+# Checked before it replaces the live config, so a bad one never lands.
+# --no-environment checks it without connecting to Better Stack.
+- name: Write Vector's config
+  ansible.builtin.template:
+    src: vector.yaml.j2
+    dest: /etc/vector/vector.yaml
+    owner: root
+    group: root
+    mode: "0644"
+    validate: vector validate --no-environment --config-yaml %s
+  notify: Restart vector
+
+# In check mode Vector is not really installed, so it has no unit yet, which
+# systemd_service fails on even in check mode. A real run is never excused.
+- name: Enable and start Vector
+  ansible.builtin.systemd_service:
+    name: vector
+    enabled: true
+    state: started
+    daemon_reload: true
+  ignore_errors: "{{ ansible_check_mode }}"

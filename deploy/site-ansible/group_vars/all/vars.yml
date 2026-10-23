@@ -44,6 +44,13 @@ site_binary_src: ""
 # Written to /etc/site/site.env (root-only). Keep the values in the vault.
 site_env: "{{ vault_site_env }}"
 
+# --- Logs -----------------------------------------------------------------
+# Vector sends the site's logs from journald to Better Stack. Both come from
+# the Better Stack source: the ingesting host here, the token in the vault.
+# Until both are set, the logs role is skipped.
+betterstack_ingest_host: s2807876.us-west-2a.betterstackdata.com   # source belfastgophers_site
+betterstack_token: "{{ vault_betterstack_token | default('') }}"
+
 # --- CI deploy user -------------------------------------------------------
 deploy_user: deploy
 # Public half of the GitHub Actions key. Skipped if the file is absent.

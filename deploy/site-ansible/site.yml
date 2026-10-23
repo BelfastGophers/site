@@ -42,3 +42,7 @@
   roles:
     - base
     - app
+    - role: logs
+      when:
+        - betterstack_ingest_host | length > 0
+        - betterstack_token | length > 0

@@ -18,6 +18,7 @@ group_vars/all/vault.yml     secrets (you create this, encrypted)
 files/gh_deploy.pub          CI public key (optional, you add it)
 roles/base                   hostname, packages, resolved, admin user, sshd
 roles/app                    users, dirs, SELinux, deploy script, sudoers, unit
+roles/logs                   Vector, shipping the site's logs to Better Stack
 ```
 
 ## One-off setup on your laptop
@@ -80,6 +81,28 @@ restarts, and renew automatically. Secrets stay in `/etc/site/site.env`;
 everything else is visible with `systemctl cat site`.
 
 The GitHub App's callback URL must use `site_base_url`.
+
+## Logs
+
+Vector reads the site's journal and sends each log line to Better Stack, as
+an event with the line's JSON fields: `level`, `msg`, `request_id`, status,
+route and the rest. The site's logs stay in the journal too, for
+`journalctl -u site`.
+
+1. In Better Stack, create a log source with Vector as the platform.
+2. Put its ingesting host in `betterstack_ingest_host` in `vars.yml`.
+3. Put its token in the vault as `vault_betterstack_token`
+   (`ansible-vault edit group_vars/all/vault.yml`).
+4. Run the playbook.
+
+Until both are set, the role is skipped. The token is a Vector secret, in
+`/etc/vector/secrets/betterstack_token`, readable only by Vector; the config
+in `/etc/vector/vector.yaml` refers to it as `SECRET[local.betterstack_token]`,
+and is checked with `vector validate` before it replaces the live one. Vector
+does not expand environment variables in its config by default, so the token
+cannot be passed that way. To see it working, run
+`journalctl -u vector -f` on the server and load a page: the request appears
+in Better Stack's live tail.
 
 ## People
 
