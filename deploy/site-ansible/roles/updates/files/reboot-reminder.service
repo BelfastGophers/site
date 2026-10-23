@@ -1,0 +1,9 @@
+# Managed by Ansible
+# Logs, for Better Stack, that a reboot is still owed, until there is one.
+[Unit]
+Description=Remind that a reboot is required
+ConditionPathExists=/run/reboot-required
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/logger -t reboot-required "reboot still required: see /run/reboot-required"

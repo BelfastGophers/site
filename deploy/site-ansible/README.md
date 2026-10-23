@@ -18,7 +18,8 @@ group_vars/all/vault.yml     secrets (you create this, encrypted)
 files/gh_deploy.pub          CI public key (optional, you add it)
 roles/base                   hostname, packages, resolved, admin user, sshd
 roles/app                    users, dirs, SELinux, deploy script, sudoers, unit
-roles/logs                   Vector, shipping the site's logs to Better Stack
+roles/updates                daily automatic updates, reboot-required marker
+roles/logs                   Vector, shipping the logs to Better Stack
 ```
 
 ## One-off setup on your laptop
@@ -84,8 +85,9 @@ The GitHub App's callback URL must use `site_base_url`.
 
 ## Logs
 
-Vector reads the site's journal and sends each log line to Better Stack, as
-an event with the line's JSON fields: `level`, `msg`, `request_id`, status,
+Vector reads the journals of the site and of automatic updates (see
+Updates), and sends each line to Better Stack. A site line becomes an event
+with its JSON fields: `level`, `msg`, `request_id`, status,
 route and the rest. The site's logs stay in the journal too, for
 `journalctl -u site`.
 
@@ -103,6 +105,60 @@ does not expand environment variables in its config by default, so the token
 cannot be passed that way. To see it working, run
 `journalctl -u vector -f` on the server and load a page: the request appears
 in Better Stack's live tail.
+
+## Updates
+
+dnf5 automatic applies updates every day, at 06:00 UTC plus up to an hour
+(`systemctl list-timers dnf5-automatic.timer`; its output is in
+`journalctl -u dnf5-automatic` and in Better Stack). It never reboots. When
+the updates include a package that needs a reboot, such as the kernel, it
+runs `/usr/local/sbin/reboot-required` instead, which:
+
+- writes `/run/reboot-required` (also `/var/run/reboot-required`): when,
+  the running kernel and the newest installed one;
+- adds a line to the login message, for everyone who logs in;
+- logs `reboot required: ...`, which Vector sends to Better Stack.
+
+While `/run/reboot-required` exists, `reboot-reminder.timer` logs
+`reboot still required: ...` every day at 09:00 UTC. `/run` is cleared at
+boot, so rebooting clears all of it: reboot when it suits, with
+`sudo systemctl reboot`.
+
+Every event has a `unit` field: `site.service` for the site,
+`dnf5-automatic.service` or `reboot-reminder.service` for updates.
+
+### The reboot alert
+
+The alert is set up in Better Stack, not here. In Telemetry, Explore logs,
+on the site's source:
+
+1. Under Log filtering, deselect the preset, and filter with
+   `/"msg":"reboot (still )?required/`. It matches both lines, and never a
+   site request, whose `msg` is `request`.
+2. Add an alert with the Threshold detection method, alerting when any
+   series is higher than `0`.
+3. Under Advanced settings, choose who to alert and how (E-mail), and set
+   "on data from" to the last 5 minutes.
+
+The window matters. One reboot line is a single event, and with a window of
+the last minute it is counted by one check only: the next check's count is
+back to 0, so the 1-minute confirmation period is never met and no incident
+opens. With 5 minutes, five checks in a row count it.
+
+The incident resolves itself once the window passes the last line. While a
+reboot is owed, the daily reminder opens a new one, so the alert repeats
+until you reboot.
+
+To test it without an update:
+
+```bash
+sudo /usr/local/sbin/reboot-required           # marker and login message
+sudo systemctl start reboot-reminder.service   # logs to Better Stack
+sudo rm /run/reboot-required /run/motd.d/reboot-required   # undo
+```
+
+The script's own log line is only sent when dnf5 automatic runs it; run by
+hand, the reminder is what reaches Better Stack.
 
 ## People
 
