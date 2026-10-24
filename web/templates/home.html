@@ -72,9 +72,14 @@
     <section id="next">
         <h1>Next Meet-up</h1>
         {{with .Data}}
+        {{if .Cover}}
+        {{/* The cover is the link: its alt text is what the text below says. */}}
+        <a href="{{.URL}}"><img class="cover" src="/events/{{.ID}}/cover" alt="{{.Title}}, {{(local .StartsAt).Format "Monday 2 January 2006"}}: sign up on Meetup"></a>
+        {{else}}
         <p class="event-title">{{.Title}}</p>
         <p>{{(local .StartsAt).Format "Monday 2 January 2006"}}</p>
         <p><a class="button" href="{{.URL}}">Sign up on Meetup</a></p>
+        {{end}}
         {{else}}
         <p>No meet-up scheduled yet. Join us on <a href="https://www.meetup.com/belfast-gophers/">Meetup</a> to hear when the next one is.</p>
         {{end}}

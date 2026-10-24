@@ -50,3 +50,12 @@ func TestEventsRefused(t *testing.T) {
 		t.Error("a feed Meetup did not serve gave no error")
 	}
 }
+
+// A page that is not a feed must fail, not read as no events: SyncEvents
+// would delete every event to come.
+func TestEventsNotAFeed(t *testing.T) {
+	t.Parallel()
+	if _, err := Events(t.Context(), http.DefaultClient, serveFeed(t, http.StatusOK, []byte("<html>Meetup is down</html>"))); err == nil {
+		t.Error("a page that is not a feed gave no error")
+	}
+}

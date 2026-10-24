@@ -95,6 +95,7 @@ func TestPages(t *testing.T) {
 		{"/raffle/", http.StatusMovedPermanently, ""},
 		{"/organisers", http.StatusUnauthorized, "Sign in with GitHub"},
 		{"/organisers/proposals", http.StatusUnauthorized, "Sign in with GitHub"},
+		{"/events/1/cover", http.StatusNotFound, "no cover image"},
 		{"/no-such-page", http.StatusNotFound, ""},
 	}
 	for _, tt := range tests {

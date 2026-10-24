@@ -3,7 +3,6 @@ VERSION:2.0
 PRODID:-//Meetup//Meetup Calendar 1.0//EN
 CALSCALE:GREGORIAN
 METHOD:PUBLISH
-X-WR-CALNAME:Belfast Gophers
 BEGIN:VTIMEZONE
 TZID:Europe/London
 BEGIN:STANDARD
@@ -38,4 +37,6 @@ SUMMARY:December Meetup
 URL:https://www.meetup.com/belfast-gophers/events/311000002/
 UID:event_311000002@meetup.com
 END:VEVENT
+X-ORIGINAL-URL:https://www.meetup.com/Belfast-Gophers/events/ical/
+X-WR-CALNAME:Belfast Gophers
 END:VCALENDAR
