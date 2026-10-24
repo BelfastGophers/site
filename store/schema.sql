@@ -14,6 +14,16 @@ CREATE TABLE IF NOT EXISTS events (
 
 CREATE INDEX IF NOT EXISTS events_ends_at ON events (ends_at);
 
+-- An event's cover image on Meetup, for the home page: SyncCover saves it.
+-- source is the image's address on Meetup, so that it is downloaded again
+-- only when the cover changes. A table of its own, rather than columns on
+-- events, so that it is created in a database that already has events.
+CREATE TABLE IF NOT EXISTS event_covers (
+	event_id INTEGER PRIMARY KEY REFERENCES events (id) ON DELETE CASCADE,
+	source   TEXT NOT NULL,
+	image    BLOB NOT NULL
+);
+
 -- An event's raffle. Entries are deleted a week after the event ends, by
 -- Prune; drawn_at is set when an entry wins, so it is not drawn again.
 CREATE TABLE IF NOT EXISTS raffle_entries (

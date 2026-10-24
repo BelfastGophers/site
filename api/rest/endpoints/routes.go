@@ -36,6 +36,7 @@ func AddRoutes(public, protected *rest.Group, deps Deps) {
 	site, signIn := deps.Site, deps.Auth
 	public.Handle(http.MethodGet, "/", web.Static())
 	public.Handle(http.MethodGet, "/{$}", web.Page(site.Home()))
+	public.Handle(http.MethodGet, "/events/{id}/cover", web.Page(site.Cover()))
 	public.Handle(http.MethodGet, "/sponsors", rest.Wrap(web.Info("sponsors", "Sponsors")))
 	public.Handle(http.MethodGet, "/swag", rest.Wrap(web.Info("swag", "Swag")))
 	public.Handle(http.MethodGet, "/videos", web.Page(site.Videos()))

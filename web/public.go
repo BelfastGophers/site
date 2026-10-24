@@ -23,8 +23,15 @@ const (
 	maxDuration    = 180
 )
 
-// Home is the home page, with the next meet-up and a link to sign up for it
-// on Meetup, or a note that none is scheduled.
+// nextEvent is the meet-up on the home page.
+type nextEvent struct {
+	store.Event
+	// Cover is whether it has a cover image to show.
+	Cover bool
+}
+
+// Home is the home page, with the next meet-up, its cover, and a link to
+// sign up for it on Meetup, or a note that none is scheduled.
 func (s *Site) Home() rest.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		next, err := s.store.NextEvent(r.Context(), s.now())
@@ -34,7 +41,36 @@ func (s *Site) Home() rest.HandlerFunc {
 		if err != nil {
 			return err
 		}
-		return render(w, r, http.StatusOK, "home", "", next)
+		_, err = s.store.CoverSource(r.Context(), next.ID)
+		if err != nil && !errors.Is(err, store.ErrNotFound) {
+			return err
+		}
+		return render(w, r, http.StatusOK, "home", "", nextEvent{Event: next, Cover: err == nil})
+	}
+}
+
+// errNoCover is the 404 for an event with no cover image.
+var errNoCover = rest.Status(http.StatusNotFound, errors.New("this event has no cover image"))
+
+// Cover is an event's cover image, as it is on Meetup.
+func (s *Site) Cover() rest.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		var req eventPath
+		if err := binder.Bind(r, &req); err != nil {
+			return errNoCover
+		}
+		image, err := s.store.Cover(r.Context(), req.ID)
+		if errors.Is(err, store.ErrNotFound) {
+			return errNoCover
+		}
+		if err != nil {
+			return err
+		}
+		w.Header().Set("Content-Type", http.DetectContentType(image))
+		// The sync looks for a new cover hourly.
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		_, err = w.Write(image)
+		return err
 	}
 }
 

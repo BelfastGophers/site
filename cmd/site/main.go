@@ -31,8 +31,9 @@ import (
 	"belfastgophers.com/site/youtube"
 )
 
-// upkeepEvery is how often events and videos are brought in from Meetup and
-// YouTube, and expired raffle entries and sessions deleted.
+// upkeepEvery is how often events, the next one's cover, and videos are
+// brought in from Meetup and YouTube, and expired raffle entries and
+// sessions deleted.
 const upkeepEvery = time.Hour
 
 func main() {
@@ -117,6 +118,9 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 				return err
 			}
 			return st.SyncEvents(ctx, events, time.Now())
+		}},
+		job{"meetup cover", func(ctx context.Context) error {
+			return meetup.SyncCover(ctx, client, st, time.Now())
 		}},
 		job{"youtube videos", func(ctx context.Context) error {
 			videos, err := youtube.Videos(ctx, client, cfg.youtubeFeed)

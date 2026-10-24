@@ -328,17 +328,67 @@ func itoa(id int64) string { return strconv.FormatInt(id, 10) }
 // link, and says so when none is scheduled.
 func TestHome(t *testing.T) {
 	t.Parallel()
-	s, _, _ := newSite(t)
+	s, current, _ := newSite(t)
 	body := do(t, s.Home(), http.MethodGet, "/", nil).Body.String()
 	for _, want := range []string{"October", "Thursday 29 October 2026", `href="https://www.meetup.com/belfast-gophers/events/1/"`, "Belfast-based community", `href="https://uradical.io"`, `alt="DailyPay"`, `href="/sponsors"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("home page during October does not contain %q", want)
 		}
 	}
+	if strings.Contains(body, `class="cover"`) {
+		t.Error("home page shows a cover October does not have")
+	}
+
+	// With its cover, which links to the event on Meetup and stands for the
+	// text, which a screen reader reads from its alt.
+	if err := s.store.SaveCover(t.Context(), current, "https://meetup.example/oct.jpeg", jpeg); err != nil {
+		t.Fatal(err)
+	}
+	body = do(t, s.Home(), http.MethodGet, "/", nil).Body.String()
+	want := `<a href="https://www.meetup.com/belfast-gophers/events/1/"><img class="cover" src="/events/` + itoa(current) +
+		`/cover" alt="October, Thursday 29 October 2026: sign up on Meetup"></a>`
+	if !strings.Contains(body, want) {
+		t.Errorf("home page during October does not contain %q", want)
+	}
+	if strings.Contains(body, "event-title") {
+		t.Error("home page shows the event's text as well as its cover")
+	}
 
 	s.now = func() time.Time { return meetup.AddDate(1, 0, 0) }
 	if body := do(t, s.Home(), http.MethodGet, "/", nil).Body.String(); !strings.Contains(body, "No meet-up scheduled yet") {
 		t.Errorf("home page with nothing scheduled does not say so:\n%s", body)
+	}
+}
+
+// jpeg is enough of a JPEG for http.DetectContentType.
+var jpeg = []byte("\xff\xd8\xff\xe0 a cover")
+
+// TestCover checks an event's cover is served as an image, and is a 404
+// for an event with none.
+func TestCover(t *testing.T) {
+	t.Parallel()
+	s, current, next := newSite(t)
+	if err := s.store.SaveCover(t.Context(), current, "https://meetup.example/oct.jpeg", jpeg); err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range []struct {
+		id     string
+		status int
+		kind   string
+	}{
+		{itoa(current), http.StatusOK, "image/jpeg"},
+		{itoa(next), http.StatusNotFound, "text/html; charset=utf-8"},
+		{"nonsense", http.StatusNotFound, "text/html; charset=utf-8"},
+	} {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/events/"+tt.id+"/cover", nil)
+		req.SetPathValue("id", tt.id)
+		rec := httptest.NewRecorder()
+		if err := Page(s.Cover())(rec, req); err != nil {
+			t.Fatal(err)
+		}
+		if rec.Code != tt.status || rec.Header().Get("Content-Type") != tt.kind {
+			t.Errorf("cover of %s = %d %s, want %d %s", tt.id, rec.Code, rec.Header().Get("Content-Type"), tt.status, tt.kind)
+		}
 	}
 }
 
