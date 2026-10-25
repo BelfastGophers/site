@@ -107,6 +107,11 @@ body {
         margin: 2em;
     }
 
+    /* Round in CSS, so a square photo needs no editing first. */
+    .organiser img {
+        border-radius: 50%;
+    }
+
     /* The hosts, who give us the venue, on a line of their own. */
     img.sponsor.host {
         max-width: min(520px, 90%);
