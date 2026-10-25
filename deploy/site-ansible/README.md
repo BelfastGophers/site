@@ -16,7 +16,9 @@ inventory.ini                server address
 group_vars/all/vars.yml      settings
 group_vars/all/vault.yml     secrets (you create this, encrypted)
 files/gh_deploy.pub          CI public key (optional, you add it)
-roles/base                   hostname, packages, resolved, admin user, sshd
+files/motd-logo.png          logo shown at SSH login
+roles/base                   hostname, packages, viu, login logo, resolved,
+                             admin user, sshd
 roles/app                    users, dirs, SELinux, deploy script, sudoers, unit
 roles/updates                daily automatic updates, reboot-required marker
 roles/logs                   Vector, shipping the logs to Better Stack
@@ -159,6 +161,21 @@ sudo rm /run/reboot-required /run/motd.d/reboot-required   # undo
 
 The script's own log line is only sent when dnf5 automatic runs it; run by
 hand, the reminder is what reaches Better Stack.
+
+## Login logo
+
+Everyone who logs in over SSH sees the Belfast Gophers logo, then
+`motd_message`, then any other login message (such as a pending reboot).
+The base role installs [viu](https://github.com/atanunq/viu) from its GitHub
+release (Fedora doesn't package it; the version and digests are in
+`vars.yml`), has it draw `files/motd-logo.png` as coloured text,
+`motd_logo_width` columns by `motd_logo_height` lines, and writes the result
+to `/etc/motd.d/00-logo`, which pam_motd prints. It is drawn once, on the
+server, rather than at every login, so it costs nothing at login and shows
+the same in every terminal. It uses 24-bit colour, which most terminals
+support (macOS Terminal before Tahoe does not). To change the logo or its
+size, change `motd_logo_src`, `motd_logo_width` or `motd_logo_height` and
+run the playbook. viu is also there to use by hand: `viu image.png`.
 
 ## People
 

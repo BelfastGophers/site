@@ -10,6 +10,17 @@
       - sqlite                         # online backups of site.db
     state: present
 
+# Fedora doesn't package viu, so it comes from the GitHub release, checked
+# against its digest.
+- name: Install viu
+  ansible.builtin.get_url:
+    url: "https://github.com/atanunq/viu/releases/download/v{{ viu_version }}/viu-{{ ansible_architecture }}-unknown-linux-musl"
+    checksum: "sha256:{{ viu_sha256[ansible_architecture] }}"
+    dest: /usr/local/bin/viu
+    owner: root
+    group: root
+    mode: "0755"
+
 # --- systemd-resolved: stop listening for LLMNR/mDNS on public interfaces --
 - name: Create resolved drop-in directory
   ansible.builtin.file:
@@ -27,6 +38,48 @@
       LLMNR=no
       MulticastDNS=no
   notify: Restart systemd-resolved
+
+# --- Login logo: viu draws it once, pam_motd shows it at every SSH login ----
+- name: Copy the logo
+  ansible.builtin.copy:
+    src: "{{ motd_logo_src }}"
+    dest: /usr/local/share/motd-logo.png
+    owner: root
+    group: root
+    mode: "0644"
+
+# The output only depends on the image and the flags, so writing it below is
+# a no-op unless one of them changed. -b forces coloured blocks over the
+# graphics protocols, which only work live in a terminal. In check mode on a
+# fresh server there is no viu yet, so the MOTD is left for the real run.
+- name: Render the logo
+  ansible.builtin.command:
+    argv: [/usr/local/bin/viu, -b, -t, -w, "{{ motd_logo_width }}", -h, "{{ motd_logo_height }}", /usr/local/share/motd-logo.png]
+  environment:
+    COLORTERM: truecolor
+  register: motd_logo
+  changed_when: false
+  check_mode: false
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Create the MOTD directory
+  ansible.builtin.file:
+    path: /etc/motd.d
+    state: directory
+    mode: "0755"
+
+# Named 00- so it comes before anything else in the MOTD, such as the
+# reboot-required line.
+- name: Write the MOTD
+  ansible.builtin.copy:
+    dest: /etc/motd.d/00-logo
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      {{ motd_logo.stdout }}
+      {{ motd_message }}
+  when: motd_logo is succeeded
 
 # --- People -----------------------------------------------------------------
 - name: Create the site group

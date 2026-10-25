@@ -51,6 +51,20 @@ site_env: "{{ vault_site_env }}"
 betterstack_ingest_host: s2807876.us-west-2a.betterstackdata.com   # source belfastgophers_site
 betterstack_token: "{{ vault_betterstack_token | default('') }}"
 
+# --- Tools ------------------------------------------------------------------
+# viu (terminal image viewer) from its GitHub release; Fedora doesn't ship it.
+viu_version: 1.6.1
+viu_sha256:                         # from the release's assets
+  x86_64: f108265ff0441406290d5f53f64a2b88d4db530a7389a5dcd771bf782aa3ec6e
+  aarch64: 64fd815cc4c9a215aab4e81e2165db78127a84789a8b04df060b3de82ac4613b
+
+# --- Login message --------------------------------------------------------
+# The logo shown to everyone at SSH login, drawn with viu, and a line below.
+motd_logo_src: "{{ playbook_dir }}/files/motd-logo.png"
+motd_logo_width: 30                 # columns
+motd_logo_height: 15                # lines
+motd_message: "Belfast Gophers · {{ server_hostname }}"
+
 # --- CI deploy user -------------------------------------------------------
 deploy_user: deploy
 # Public half of the GitHub Actions key. Skipped if the file is absent.
