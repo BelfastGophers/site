@@ -1,0 +1,52 @@
+# The ServerCat iPhone app logs in as servercat to read system stats. Its key
+# can only run the gate, and the gate only runs commands listed verbatim in
+# the allowlist. sshd runs the forced command through the user's shell, so
+# the shell has to be a real one.
+- name: Create servercat user (no password, forced command only)
+  ansible.builtin.user:
+    name: "{{ servercat_user }}"
+    shell: /bin/bash
+    groups: []
+    append: false
+    password: "!"
+
+- name: Install the gate
+  ansible.builtin.copy:
+    src: servercat-gate
+    dest: /usr/local/bin/servercat-gate
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create the allowlist directory
+  ansible.builtin.file:
+    path: /etc/servercat-gate
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# Root-owned and read-only to everyone else, so servercat can't add to it.
+- name: Install the allowlist
+  ansible.builtin.copy:
+    src: allowed
+    dest: /etc/servercat-gate/allowed
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Authorise the ServerCat key with a forced command
+  ansible.posix.authorized_key:
+    user: "{{ servercat_user }}"
+    key: "{{ lookup('ansible.builtin.file', servercat_pubkey_file) }}"
+    key_options: 'restrict,command="/usr/local/bin/servercat-gate"'
+    exclusive: true
+  when: servercat_pubkey_file is file
+
+- name: Restore SELinux labels on servercat's .ssh
+  ansible.builtin.command: "restorecon -Rv /home/{{ servercat_user }}/.ssh"
+  args:
+    removes: "/home/{{ servercat_user }}/.ssh"
+  register: servercat_restorecon
+  changed_when: servercat_restorecon.stdout | length > 0
+  when: ansible_facts['selinux'].status == 'enabled'

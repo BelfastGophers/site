@@ -1,0 +1,32 @@
+#!/bin/sh
+# /usr/local/bin/servercat-gate
+# Forced command for the servercat SSH key. Only runs commands that appear
+# verbatim (whole line) in the allowlist; everything else is denied and logged.
+
+ALLOWLIST=/etc/servercat-gate/allowed
+cmd=$SSH_ORIGINAL_COMMAND
+
+deny() {
+    logger -t servercat-gate "DENIED ($1): $cmd"
+    echo "denied" >&2
+    exit 1
+}
+
+# No command = interactive login attempt.
+[ -n "$cmd" ] || deny "no command"
+
+# Reject newlines/CRs: grep treats a newline in the pattern as several
+# patterns, which would let "allowed-line<newline>anything" slip through.
+nl='
+'
+cr=$(printf '\r')
+case "$cmd" in
+    *"$nl"*|*"$cr"*) deny "newline" ;;
+esac
+
+# Exact, fixed-string, whole-line match against the allowlist.
+if grep -Fxq -e "$cmd" "$ALLOWLIST"; then
+    exec /bin/sh -c "$cmd"
+fi
+
+deny "not allowlisted"
