@@ -1,0 +1,14 @@
+cat /etc/os-release;echo ' ----- ';cat /etc/issue;echo ' ----- ';uname -s;echo ' ----- ';uname -r;echo ' ----- ';uname -m;echo ' ----- ';uname -a
+cat /proc/loadavg; echo '---AGENT_SEP---'; cat /proc/meminfo; echo '---AGENT_SEP---'; date +%s%3N; cat /proc/stat; echo '---AGENT_SEP---'; date +%s%3N; cat /proc/net/dev; echo '---AGENT_SEP---'; cat /proc/net/sockstat;cat /proc/net/sockstat6; echo '---AGENT_SEP---'; cat /proc/net/snmp
+cat /proc/meminfo; echo '---AGENT_SEP---'; cat /proc/loadavg; echo '---AGENT_SEP---'; cat /proc/uptime; echo '---AGENT_SEP---'; cat /proc/cmdline; echo '---AGENT_SEP---'; cat /proc/mounts; echo '---AGENT_SEP---'; cat /proc/net/route; echo '---AGENT_SEP---'; cat /proc/loadavg; echo '---AGENT_SEP---'; cat /proc/meminfo; echo '---AGENT_SEP---'; date +%s%3N; cat /proc/stat; echo '---AGENT_SEP---'; date +%s%3N; cat /proc/net/dev; echo '---AGENT_SEP---'; cat /proc/net/sockstat;cat /proc/net/sockstat6; echo '---AGENT_SEP---'; cat /proc/net/snmp
+command -v docker > /dev/null && echo docker;command -v podman > /dev/null && echo podman;command -v nvidia-smi > /dev/null && echo nvidia-smi;test -d /proc && echo proc;id -Gn $USER | grep docker && echo ingroup;true
+date +%s%3N; grep '' /sys/class/net/*/statistics/*_bytes /dev/null;
+df -P
+ip route
+ls -l /sys/class/net/
+readlink /dev/disk/by-uuid/695eb973-f4fb-484c-9742-6bc304fe7185
+sh -c 'command -v getconf > /dev/null && getconf _NPROCESSORS_ONLN || grep -c ^processor /proc/cpuinfo'
+sh -c 'date +%s%3N;grep "" /sys/block/*/stat /dev/null; grep "" /sys/block/*/*/stat /dev/null || echo yes'
+sh -c 'grep -oE "[0-9]+" /proc/dmu/temperature || cat /sys/class/thermal/thermal_*/temp || cat /sys/class/hwmon/hwmon*/temp1_input || echo yes'
+sh -c 'if [ "$(uname 2>/dev/null)" = Darwin ]; then ps -Ao pid,pcpu,rss,command -r 2>/dev/null | head -n 60; else COLUMNS=512 top -cbn1 -w512 || top -cbn1 || top -bn1; fi'
+uname -s

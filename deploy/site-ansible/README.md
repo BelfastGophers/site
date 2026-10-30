@@ -16,12 +16,14 @@ inventory.ini                server address
 group_vars/all/vars.yml      settings
 group_vars/all/vault.yml     secrets (you create this, encrypted)
 files/gh_deploy.pub          CI public key (optional, you add it)
+files/servercat.pub          ServerCat app public key
 files/motd-logo.png          logo shown at SSH login
 roles/base                   hostname, packages, viu, login logo, resolved,
                              admin user, sshd
 roles/app                    users, dirs, SELinux, deploy script, sudoers, unit
 roles/updates                daily automatic updates, reboot-required marker
 roles/logs                   Vector, shipping the logs to Better Stack
+roles/servercat              read-only monitoring user for the ServerCat app
 ```
 
 ## One-off setup on your laptop
@@ -192,6 +194,28 @@ To revoke a key, delete its line from the `.pub` file. To remove a person,
 delete them from `users`, add them to `removed_users`, and run the playbook.
 Group membership is managed exactly, so changing `admin` or `deployer` adds
 or removes access on the next run.
+
+## ServerCat
+
+The ServerCat iPhone app logs in as `servercat` to show load, memory, disk
+and network. The account has no password, no groups and no sudo, and its key
+in `files/servercat.pub` is authorised with
+`restrict,command="/usr/local/bin/servercat-gate"`: no shell, no PTY, no
+forwarding. The gate runs a command only if it matches a whole line of
+`/etc/servercat-gate/allowed` exactly; anything else is refused and logged:
+
+```bash
+journalctl -t servercat-gate
+```
+
+The gate and the allowlist are in `roles/servercat/files`. When an app
+update sends a new command, it shows up there as `DENIED (not allowlisted)`;
+copy the command into `allowed`, exactly as logged, and run the playbook.
+One line is tied to this server's disk (`readlink /dev/disk/by-uuid/...`),
+so a rebuilt server will log that one as denied too.
+
+To rotate the key, generate a new one in the app, replace
+`files/servercat.pub` and run the playbook; the old key is removed.
 
 ## Deploying
 
