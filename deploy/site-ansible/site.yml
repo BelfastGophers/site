@@ -43,6 +43,7 @@
     - base
     - app
     - updates
+    - servercat
     - role: logs
       when:
         - betterstack_ingest_host | length > 0

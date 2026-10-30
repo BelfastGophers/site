@@ -69,3 +69,10 @@ motd_message: "Belfast Gophers · {{ server_hostname }}"
 deploy_user: deploy
 # Public half of the GitHub Actions key. Skipped if the file is absent.
 deploy_pubkey_file: "{{ playbook_dir }}/files/gh_deploy.pub"
+
+# --- ServerCat (iPhone monitoring app) ------------------------------------
+# Read-only stats over SSH: the key can only run the commands listed in
+# roles/servercat/files/allowed. Its public key is the complete list, so
+# replacing the file rotates it. Key task skipped if the file is absent.
+servercat_user: servercat
+servercat_pubkey_file: "{{ playbook_dir }}/files/servercat.pub"
