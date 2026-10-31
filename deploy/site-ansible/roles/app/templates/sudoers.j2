@@ -1,2 +1,5 @@
 # Managed by Ansible
-%{{ site_group }} ALL=(root) NOPASSWD: /usr/bin/systemctl restart {{ site_name }}.service
+# Organisers: restart the site, or roll back to a release CI already built.
+%{{ site_group }} ALL=(root) NOPASSWD: /usr/bin/systemctl restart {{ site_name }}.service, /usr/local/sbin/site-rollback
+# CI: site-deploy restarts the site after swapping current.
+{{ deploy_user }} ALL=(root) NOPASSWD: /usr/bin/systemctl restart {{ site_name }}.service

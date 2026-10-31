@@ -6,21 +6,29 @@
     create_home: false
     shell: /sbin/nologin
 
+# Only CI writes releases, so the deploy user has a group of its own and is
+# in no other: organisers in the site group can restart, roll back and
+# reboot, but cannot put a binary live that CI didn't build.
+- name: Create CI deploy group
+  ansible.builtin.group:
+    name: "{{ deploy_user }}"
+
 - name: Create CI deploy user (no password, forced command only)
   ansible.builtin.user:
     name: "{{ deploy_user }}"
-    groups: "{{ site_group }}"
-    append: true
+    group: "{{ deploy_user }}"
+    groups: ""
+    append: false
     shell: /bin/bash
     password: "!"
 
 # --- Release directories --------------------------------------------------
-- name: Create site directories (setgid so new files get the group)
+- name: Create site directories (writable by CI's deploy group only)
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     owner: root
-    group: "{{ site_group }}"
+    group: "{{ deploy_user }}"
     mode: "2775"
   loop:
     - "{{ site_root }}"
@@ -41,7 +49,15 @@
     group: root
     mode: "0755"
 
-- name: Allow the deploy group to restart the service, nothing else
+- name: Install rollback script
+  ansible.builtin.template:
+    src: site-rollback.sh.j2
+    dest: /usr/local/sbin/site-rollback
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Allow restart and rollback, nothing else
   ansible.builtin.template:
     src: sudoers.j2
     dest: "/etc/sudoers.d/{{ site_group }}"
@@ -97,7 +113,7 @@
     src: "{{ site_binary_src }}"
     dest: "{{ site_root }}/releases/site-initial"
     owner: root
-    group: "{{ site_group }}"
+    group: "{{ deploy_user }}"
     mode: "0755"
   when:
     - not site_current.stat.exists

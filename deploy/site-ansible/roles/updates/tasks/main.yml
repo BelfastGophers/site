@@ -30,6 +30,20 @@
       reboot = when-needed
       reboot_command = /usr/local/sbin/reboot-required
 
+# polkit reads rules.d itself when a file changes, so no restart is needed.
+- name: Install polkit
+  ansible.builtin.package:
+    name: polkit
+    state: present
+
+- name: Let the site group reboot without sudo
+  ansible.builtin.template:
+    src: reboot.rules.j2
+    dest: "/etc/polkit-1/rules.d/50-{{ site_group }}-reboot.rules"
+    owner: root
+    group: root
+    mode: "0644"
+
 - name: Install the reboot reminder
   ansible.builtin.copy:
     src: "{{ item }}"

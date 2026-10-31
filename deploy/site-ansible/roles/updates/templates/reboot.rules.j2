@@ -1,0 +1,12 @@
+// Managed by Ansible
+// Members of {{ site_group }} can reboot with `systemctl reboot`, no sudo,
+// to apply updates that need it. Reboot only: a powered-off server needs the
+// Hetzner console to come back. reboot-multiple-sessions covers rebooting
+// while someone else is logged in.
+polkit.addRule(function(action, subject) {
+    if ((action.id == "org.freedesktop.login1.reboot" ||
+         action.id == "org.freedesktop.login1.reboot-multiple-sessions") &&
+        subject.isInGroup("{{ site_group }}")) {
+        return polkit.Result.YES;
+    }
+});

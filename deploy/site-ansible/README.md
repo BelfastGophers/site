@@ -1,10 +1,11 @@
 # Belfast Gophers web server
 
 Takes a fresh Fedora server to a running site: admin user with sudo, key-only
-SSH with root disabled, LLMNR/mDNS off, the `gophers` deploy group, the `site`
-service user, `/opt/site` release layout with SELinux labels, the restricted
-`deploy` user for GitHub Actions, root-only secrets in `/etc/site/site.env`,
-and the systemd unit serving HTTPS on 443 (HTTP on 80 redirects) with
+SSH with root disabled and forwarding off, LLMNR/mDNS off, the `gophers`
+organisers group, the `site` service user, `/opt/site` release layout with
+SELinux labels, the restricted `deploy` user for GitHub Actions (the only
+account that can add releases), root-only secrets in `/etc/site/site.env`,
+and the sandboxed systemd unit serving HTTPS on 443 (HTTP on 80 redirects) with
 Let's Encrypt certificates, the database and the certificate cache all in
 `/var/lib/site`.
 
@@ -20,7 +21,8 @@ files/servercat.pub          ServerCat app public key
 files/motd-logo.png          logo shown at SSH login
 roles/base                   hostname, packages, viu, login logo, resolved,
                              admin user, sshd
-roles/app                    users, dirs, SELinux, deploy script, sudoers, unit
+roles/app                    users, dirs, SELinux, deploy and rollback
+                             scripts, sudoers, unit
 roles/updates                daily automatic updates, reboot-required marker
 roles/logs                   Vector, shipping the logs to Better Stack
 roles/servercat              read-only monitoring user for the ServerCat app
@@ -126,7 +128,10 @@ runs `/usr/local/sbin/reboot-required` instead, which:
 While `/run/reboot-required` exists, `reboot-reminder.timer` logs
 `reboot still required: ...` every day at 09:00 UTC. `/run` is cleared at
 boot, so rebooting clears all of it: reboot when it suits, with
-`sudo systemctl reboot`.
+`systemctl reboot`. Members of the `gophers` group (`deployer: true`) can
+run it without sudo, through a polkit rule in
+`/etc/polkit-1/rules.d/50-gophers-reboot.rules`; they can reboot, not power
+off.
 
 Every event has a `unit` field: `site.service` for the site,
 `dnf5-automatic.service` or `reboot-reminder.service` for updates.
@@ -185,7 +190,8 @@ Everyone with a login is listed under `users` in `vars.yml`, and their public
 keys are in `files/keys/<name>.pub`. To add someone:
 
 1. Put their public key(s) in `files/keys/<name>.pub`, one per line.
-2. Add them to `users` with `deployer: true` and, for full sudo, `admin: true`.
+2. Add them to `users` with `deployer: true` (restart, roll back, reboot)
+   and, for full sudo, `admin: true`.
 3. For admins, add their password hash to `vault_user_password_hashes`
    (`ansible-vault edit group_vars/all/vault.yml`).
 4. Run the playbook.
@@ -193,7 +199,9 @@ keys are in `files/keys/<name>.pub`. To add someone:
 To revoke a key, delete its line from the `.pub` file. To remove a person,
 delete them from `users`, add them to `removed_users`, and run the playbook.
 Group membership is managed exactly, so changing `admin` or `deployer` adds
-or removes access on the next run.
+or removes access on the next run. sshd only accepts the accounts in `users`
+plus `deploy` and `servercat` (`AllowUsers`), so an account made by hand on
+the server can't log in.
 
 ## ServerCat
 
@@ -219,18 +227,53 @@ To rotate the key, generate a new one in the app, replace
 
 ## Deploying
 
-```bash
-# CI (deploy user, forced command)
-ssh deploy@SERVER deploy < site
+New code goes live only through CI: a push to `main` that passes CI is
+built and sent by the Deploy workflow, as the `deploy` user, whose key can
+only run `site-deploy`:
 
-# You (as alan, member of gophers)
-ssh SERVER 'SSH_ORIGINAL_COMMAND=deploy /usr/local/bin/site-deploy' < site
+```bash
+ssh deploy@SERVER deploy < site
 ```
 
 The script rejects empty or non-ELF uploads, swaps `current` atomically,
 restarts the service, and keeps the five newest releases (never deleting the
-live one). Roll back by pointing `current` at an older release and running
-`sudo systemctl restart site`.
+live one). `/opt/site` and `releases/` belong to the `deploy` group, and
+`deploy` is in no other, so organisers can't add a release and CI can't use
+anything the organisers can.
+
+Organisers (`gophers`) can restart the site, roll back, and reboot:
+
+```bash
+sudo systemctl restart site
+sudo site-rollback              # list releases, newest first
+sudo site-rollback previous     # the release before the live one
+sudo site-rollback site-20261031120000
+systemctl reboot
+```
+
+`site-rollback` only points `current` at a release already in `releases/`,
+all of which CI built, and logs who did it (`journalctl -t site-rollback`).
+The usual way back is still a revert on `main`; rollback is for when the site
+is down and CI is too slow.
+
+An admin can deploy by hand when GitHub is down, as the deploy user, from a
+binary copied to their home (sudo needs a terminal, so it can't read the
+binary from the SSH connection):
+
+```bash
+scp site SERVER:
+ssh -t SERVER 'sudo -u deploy env SSH_ORIGINAL_COMMAND=deploy /usr/local/bin/site-deploy < ~/site && rm ~/site'
+```
+
+## The site's sandbox
+
+The unit runs the binary as `site` with only `CAP_NET_BIND_SERVICE`, a
+read-only system apart from `/var/lib/site`, no devices, no kernel or
+cgroup tunables, IPv4/IPv6/Unix sockets only, and a system-call filter
+(`@system-service`, minus `@privileged`; anything else fails with EPERM).
+`systemd-analyze security site` scores it. If a new feature of the site
+needs something the sandbox blocks, it shows up as an EPERM in
+`journalctl -u site`; loosen the one setting in `site.service.j2`.
 
 ## Not covered
 

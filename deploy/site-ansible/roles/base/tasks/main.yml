@@ -14,8 +14,8 @@
 # against its digest.
 - name: Install viu
   ansible.builtin.get_url:
-    url: "https://github.com/atanunq/viu/releases/download/v{{ viu_version }}/viu-{{ ansible_architecture }}-unknown-linux-musl"
-    checksum: "sha256:{{ viu_sha256[ansible_architecture] }}"
+    url: "https://github.com/atanunq/viu/releases/download/v{{ viu_version }}/viu-{{ ansible_facts['architecture'] }}-unknown-linux-musl"
+    checksum: "sha256:{{ viu_sha256[ansible_facts['architecture']] }}"
     dest: /usr/local/bin/viu
     owner: root
     group: root
@@ -117,6 +117,10 @@
   loop: "{{ removed_users }}"
 
 # --- sshd: keys only, no root. Applied by handler at the end of the run. ---
+# AllowUsers is the people in vars.yml plus the two forced-command accounts,
+# so an account created any other way can't log in. Forwarding is off: no
+# one needs it, and agent forwarding would let anyone with root here use an
+# organiser's agent while they are logged in.
 - name: Harden sshd
   ansible.builtin.copy:
     dest: /etc/ssh/sshd_config.d/10-hardening.conf
@@ -127,4 +131,12 @@
       PermitRootLogin no
       PasswordAuthentication no
       KbdInteractiveAuthentication no
+      AllowUsers {{ (users | map(attribute='name') | list + [deploy_user, servercat_user]) | join(' ') }}
+      AllowAgentForwarding no
+      AllowTcpForwarding no
+      AllowStreamLocalForwarding no
+      X11Forwarding no
+      PermitTunnel no
+      LoginGraceTime 30
+    validate: sshd -t -f %s
   notify: Restart sshd

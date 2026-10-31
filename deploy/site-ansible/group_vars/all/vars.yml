@@ -5,7 +5,8 @@ server_hostname: belfastgophers-web1
 # One entry per person. Their public keys go in files/keys/<name>.pub, one
 # key per line; that file is the complete list, so removing a line revokes it.
 #   admin:    member of wheel, full sudo (needs a hash in the vault)
-#   deployer: member of the site group, can upload releases and restart it
+#   deployer: member of the site group: can restart the site, roll back to
+#             a release CI built, and reboot. Only CI puts new code live.
 users:
   - name: alan
     admin: true
@@ -23,7 +24,7 @@ user_password_hashes: "{{ vault_user_password_hashes }}"
 # --- Site -----------------------------------------------------------------
 site_name: site                     # service name, system user, state dir
 site_description: BelfastGophers_site
-site_group: gophers                 # people (and CI) allowed to deploy
+site_group: gophers                 # organisers: restart, roll back, reboot
 site_root: /opt/site
 
 # HTTPS via Let's Encrypt, served by the binary itself. The domain and its
@@ -66,6 +67,7 @@ motd_logo_height: 15                # lines
 motd_message: "Belfast Gophers · {{ server_hostname }}"
 
 # --- CI deploy user -------------------------------------------------------
+# The only account that can write releases; also the name of its group.
 deploy_user: deploy
 # Public half of the GitHub Actions key. Skipped if the file is absent.
 deploy_pubkey_file: "{{ playbook_dir }}/files/gh_deploy.pub"
