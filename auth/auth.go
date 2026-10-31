@@ -33,8 +33,11 @@ const (
 	sessionCookie = "session"
 	stateCookie   = "oauth_state"
 
-	// SessionLength is how long an organiser stays signed in.
-	SessionLength = 12 * time.Hour
+	// SessionLength is how long an organiser stays signed in: a meet-up's
+	// evening. Membership of the organisation is checked only at sign-in, so
+	// it is also how long someone taken out of it can still sign in for; to
+	// end that sooner, delete their sessions, as the README says.
+	SessionLength = 4 * time.Hour
 	// stateLength is how long a sign-in at GitHub may take.
 	stateLength = 10 * time.Minute
 )

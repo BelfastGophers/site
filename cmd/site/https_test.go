@@ -37,8 +37,12 @@ func TestRedirects(t *testing.T) {
 			if rec.Code != tt.status || rec.Header().Get("Location") != tt.location {
 				t.Errorf("GET %s = %d to %q, want %d to %q", tt.url, rec.Code, rec.Header().Get("Location"), tt.status, tt.location)
 			}
-			if got := rec.Header().Get("Strict-Transport-Security") != ""; got != tt.hsts {
+			hsts := rec.Header().Get("Strict-Transport-Security")
+			if got := hsts != ""; got != tt.hsts {
 				t.Errorf("GET %s Strict-Transport-Security set = %t, want %t", tt.url, got, tt.hsts)
+			}
+			if tt.hsts && hsts != "max-age=31536000; includeSubDomains" {
+				t.Errorf("GET %s Strict-Transport-Security = %q, want a year, with subdomains", tt.url, hsts)
 			}
 		})
 	}
