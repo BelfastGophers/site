@@ -44,6 +44,15 @@ the membership check needs. Its callback URLs are `<base url>/auth/callback`
 for each place the site runs, `http://localhost:8080/auth/callback` locally.
 The site keeps nothing of GitHub's after sign-in.
 
+Membership is checked only at sign-in, so someone taken out of the
+organisation stays signed in until their session ends, at most four hours
+later. To end it now, delete their sessions on the server, by their GitHub
+login:
+
+```
+sudo sqlite3 /var/lib/site/site.db "DELETE FROM sessions WHERE login = 'their-login'"
+```
+
 ## Data
 
 Events come from [Meetup](https://www.meetup.com/belfast-gophers/): every hour

@@ -52,14 +52,39 @@ func parsePages() map[string]*template.Template {
 	return pages
 }
 
-// static is the site's static content, served as it is.
+// static is the site's static content, served as it is, but for its
+// directories, which are not listed.
 var static = func() fs.FS {
 	sub, err := fs.Sub(files, "static")
 	if err != nil {
 		panic(err)
 	}
-	return sub
+	return unlisted{sub}
 }()
+
+// unlisted is a file system in which a directory without an index.html does
+// not exist, so that the file server answers 404 for it rather than listing
+// what it holds. A directory with one, such as an old event's page, is
+// served as that page.
+type unlisted struct{ fs.FS }
+
+func (u unlisted) Open(name string) (fs.File, error) {
+	f, err := u.FS.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	info, err := f.Stat()
+	if err != nil {
+		return nil, errors.Join(err, f.Close())
+	}
+	if !info.IsDir() {
+		return f, nil
+	}
+	if _, err := fs.Stat(u.FS, path.Join(name, "index.html")); err != nil {
+		return nil, errors.Join(&fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}, f.Close())
+	}
+	return f, nil
+}
 
 // Static serves the static pages and assets.
 func Static() rest.HandlerFunc {

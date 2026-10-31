@@ -21,8 +21,16 @@
     {{with .Winners}}
     <h2>Winners</h2>
     <ol class="winners" reversed>
-        {{range .}}<li>{{.Name}} &lt;{{.Email}}&gt;</li>{{end}}
+        {{range .}}<li>{{.Name}}</li>{{end}}
     </ol>
+    {{/* Emails are behind a click, so that the page can be shown to the
+         room without them. */}}
+    <details class="winner-emails">
+        <summary>Show winners' email addresses</summary>
+        <ol class="winners" reversed>
+            {{range .}}<li>{{.Name}} &lt;{{.Email}}&gt;</li>{{end}}
+        </ol>
+    </details>
     {{end}}
 </section>
 {{end}}

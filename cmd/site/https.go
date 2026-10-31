@@ -40,11 +40,12 @@ func toHTTPS(domain string) http.Handler {
 
 // secure is the site served over HTTPS: a request for www is sent to the
 // same page on the domain, and browsers are told to use HTTPS for the next
-// year, so they no longer try plain HTTP first.
+// year, so they no longer try plain HTTP first, for the domain and every
+// name under it: none is served over plain HTTP.
 func secure(domain string, next http.Handler) http.Handler {
 	redirect := toHTTPS(domain)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Strict-Transport-Security", "max-age=31536000")
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		if r.Host == "www."+domain {
 			redirect.ServeHTTP(w, r)
 			return

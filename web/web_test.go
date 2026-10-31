@@ -275,6 +275,11 @@ func TestDraw(t *testing.T) {
 	if !strings.Contains(body, `<div id="winner">Name `) || !strings.Contains(body, ">Draw<") {
 		t.Errorf("after one draw: want the winner and the draw button:\n%s", body)
 	}
+	// The winner's email, shown as <address>, is only behind the click.
+	shown, hidden, _ := strings.Cut(body, "<details")
+	if strings.Contains(shown, "&lt;") || !strings.Contains(hidden, "&lt;") {
+		t.Errorf("after one draw: want the winner's email only inside <details>:\n%s", body)
+	}
 
 	do(t, s.Draw(), http.MethodPost, path+"/draw", nil)
 	// Drawing with nobody left is not an error.
@@ -315,7 +320,12 @@ func TestProposals(t *testing.T) {
 func TestStatic(t *testing.T) {
 	t.Parallel()
 	h := Static()
-	for path, want := range map[string]int{"/nov2020/": http.StatusOK, "/images/logo.webp": http.StatusOK, "/speak/": http.StatusNotFound, "/talk-ideas/": http.StatusNotFound} {
+	for path, want := range map[string]int{
+		"/nov2020/": http.StatusOK, "/nov2020": http.StatusMovedPermanently, "/images/logo.webp": http.StatusOK,
+		"/speak/": http.StatusNotFound, "/talk-ideas/": http.StatusNotFound,
+		// Directories with no page of their own are not listed.
+		"/images/": http.StatusNotFound, "/images": http.StatusNotFound, "/images/sponsors/": http.StatusNotFound,
+	} {
 		rec := httptest.NewRecorder()
 		if err := h(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)); err != nil {
 			t.Fatal(err)
