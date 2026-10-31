@@ -2,7 +2,9 @@ package web
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/mail"
 	"strconv"
@@ -83,6 +85,9 @@ type proposalRequest struct {
 	Description string `body:"description"`
 	Duration    int    `body:"duration,omitempty"`
 	Remote      *bool  `body:"remote,omitempty"`
+	// Website is a field people cannot see, which bots that fill in every
+	// field fill in: a proposal with it is thanked for and dropped.
+	Website string `body:"website"`
 }
 
 func (p proposalRequest) Validate(context.Context) error {
@@ -121,9 +126,14 @@ func (s *Site) Speak() rest.HandlerFunc {
 }
 
 // Propose saves a talk proposal, or shows the form again, with 422, saying
-// what is wrong.
+// what is wrong. Each client may send a few an hour; a form shown again to
+// be corrected does not count.
 func (s *Site) Propose() rest.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
+		who := client(r)
+		if wait := s.proposals.Wait(who, s.now()); wait > 0 {
+			return tooMany(w, wait, "That is a lot of proposals in a short time. Please try again later.")
+		}
 		var req proposalRequest
 		err := binder.Bind(r, &req)
 		var invalid fieldErrors
@@ -132,6 +142,11 @@ func (s *Site) Propose() rest.HandlerFunc {
 		}
 		if err != nil {
 			return err
+		}
+		s.proposals.Take(who, s.now())
+		if req.Website != "" {
+			slog.InfoContext(r.Context(), "proposal dropped: hidden field filled in", "client", who)
+			return render(w, r, http.StatusOK, "proposed", "Thank you", strings.TrimSpace(req.Title))
 		}
 
 		p := store.Proposal{
@@ -161,6 +176,9 @@ func isEmail(s string) bool {
 type raffleRequest struct {
 	Name  string `body:"name"`
 	Email string `body:"email"`
+	// Code is the event's raffle code, shown at the meet-up. Validate checks
+	// only that there is one; EnterRaffle that it is right.
+	Code string `body:"code"`
 }
 
 func (e raffleRequest) Validate(context.Context) error {
@@ -169,7 +187,17 @@ func (e raffleRequest) Validate(context.Context) error {
 	if !isEmail(e.Email) {
 		invalid["email"] = "Please give an email address, so we can reach you if you win."
 	}
+	if strings.TrimSpace(e.Code) == "" {
+		invalid["code"] = "Please give the code on the screen."
+	}
 	return invalid.err()
+}
+
+// codeIs reports whether what someone typed is the raffle code, ignoring
+// the spaces and dashes they might type it with.
+func codeIs(typed, code string) bool {
+	typed = strings.NewReplacer(" ", "", "-", "").Replace(typed)
+	return subtle.ConstantTimeCompare([]byte(typed), []byte(code)) == 1
 }
 
 // rafflePage is the raffle entry form, as filled in, with what is wrong with
@@ -194,8 +222,10 @@ func (s *Site) Raffle() rest.HandlerFunc {
 	}
 }
 
-// EnterRaffle enters someone in the raffle of the event under way. Email
-// addresses are compared in lower case, so one person has one entry.
+// EnterRaffle enters someone in the raffle of the event under way, given
+// its code, which organisers show at the meet-up, so that only those there
+// can enter. A client that gets the code wrong too often has to wait.
+// Addresses that reach one inbox are one person's, who has one entry.
 func (s *Site) EnterRaffle() rest.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		event, err := s.store.CurrentEvent(r.Context(), s.now())
@@ -205,14 +235,27 @@ func (s *Site) EnterRaffle() rest.HandlerFunc {
 		if err != nil {
 			return err
 		}
-		var req raffleRequest
-		err = binder.Bind(r, &req)
-		var invalid fieldErrors
-		if errors.As(err, &invalid) {
-			return render(w, r, http.StatusUnprocessableEntity, "raffle", "Raffle", rafflePage{Form: req, Errors: invalid})
+		who := client(r)
+		if wait := s.guesses.Wait(who, s.now()); wait > 0 {
+			return tooMany(w, wait, "That code has been wrong too many times. Please wait a minute and try again.")
 		}
+		code, err := s.store.RaffleCode(r.Context(), event.ID)
 		if err != nil {
 			return err
+		}
+
+		var req raffleRequest
+		err = binder.Bind(r, &req)
+		invalid := fieldErrors{}
+		if err != nil && !errors.As(err, &invalid) {
+			return err
+		}
+		if _, missing := invalid["code"]; !missing && !codeIs(req.Code, code) {
+			s.guesses.Take(who, s.now())
+			invalid["code"] = "That is not tonight's code: it is on the screen."
+		}
+		if len(invalid) > 0 {
+			return render(w, r, http.StatusUnprocessableEntity, "raffle", "Raffle", rafflePage{Form: req, Errors: invalid})
 		}
 
 		entered, err := s.store.Enter(r.Context(), event.ID, strings.TrimSpace(req.Name), strings.ToLower(req.Email))

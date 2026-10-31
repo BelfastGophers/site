@@ -214,7 +214,11 @@ func TestRaffle(t *testing.T) {
 		t.Errorf("the raffle form is not shown during the meet-up:\n%s", body)
 	}
 
-	entry := url.Values{"name": {"Gopher"}, "email": {"g@example.com"}}
+	code, err := s.store.RaffleCode(t.Context(), current)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry := url.Values{"name": {"Gopher"}, "email": {"g@example.com"}, "code": {code}}
 	if rec := do(t, s.EnterRaffle(), http.MethodPost, "/raffle", entry); rec.Code != http.StatusOK ||
 		strings.Contains(rec.Body.String(), "already entered") {
 		t.Errorf("entering: %d, want good luck:\n%s", rec.Code, rec.Body)
@@ -223,7 +227,11 @@ func TestRaffle(t *testing.T) {
 	if rec := do(t, s.EnterRaffle(), http.MethodPost, "/raffle", entry); !strings.Contains(rec.Body.String(), "already entered") {
 		t.Errorf("entering again in other case: want already entered:\n%s", rec.Body)
 	}
-	if rec := do(t, s.EnterRaffle(), http.MethodPost, "/raffle", url.Values{"name": {"Gopher"}}); rec.Code != http.StatusUnprocessableEntity {
+	entry.Set("email", "g+again@example.com")
+	if rec := do(t, s.EnterRaffle(), http.MethodPost, "/raffle", entry); !strings.Contains(rec.Body.String(), "already entered") {
+		t.Errorf("entering again with a +tag: want already entered:\n%s", rec.Body)
+	}
+	if rec := do(t, s.EnterRaffle(), http.MethodPost, "/raffle", url.Values{"name": {"Gopher"}, "code": {code}}); rec.Code != http.StatusUnprocessableEntity {
 		t.Errorf("entering without an email: %d, want 422", rec.Code)
 	}
 	if n, err := s.store.EntryCount(t.Context(), current); err != nil || n != 1 {
@@ -235,7 +243,7 @@ func TestRaffle(t *testing.T) {
 	if body := do(t, s.Raffle(), http.MethodGet, "/raffle", nil).Body.String(); !strings.Contains(body, "No raffle tonight") {
 		t.Errorf("the raffle is open after the meet-up:\n%s", body)
 	}
-	if rec := do(t, s.EnterRaffle(), http.MethodPost, "/raffle", url.Values{"name": {"Late"}, "email": {"l@example.com"}}); rec.Code != http.StatusConflict {
+	if rec := do(t, s.EnterRaffle(), http.MethodPost, "/raffle", url.Values{"name": {"Late"}, "email": {"l@example.com"}, "code": {code}}); rec.Code != http.StatusConflict {
 		t.Errorf("entering after the meet-up: %d, want 409", rec.Code)
 	}
 }
@@ -246,6 +254,13 @@ func TestDraw(t *testing.T) {
 	path := "/organisers/events/" + itoa(current)
 	if body := do(t, s.EventRaffle(), http.MethodGet, path, nil).Body.String(); !strings.Contains(body, "0 entries") || strings.Contains(body, ">Draw<") {
 		t.Errorf("with no entries: want 0 entries and no draw button:\n%s", body)
+	}
+	code, err := s.store.RaffleCode(t.Context(), current)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body := do(t, s.EventRaffle(), http.MethodGet, path, nil).Body.String(); !strings.Contains(body, "<strong>"+code[:3]+" "+code[3:]+"</strong>") {
+		t.Errorf("the raffle's code %s is not shown:\n%s", code, body)
 	}
 	for _, email := range []string{"a@example.com", "b@example.com"} {
 		if _, err := s.store.Enter(t.Context(), current, "Name "+email, email); err != nil {
@@ -447,5 +462,99 @@ func TestOrganisers(t *testing.T) {
 	}
 	if strings.Contains(body, "18:30") {
 		t.Error("organisers' page shows a time")
+	}
+}
+
+// TestRaffleCode checks the raffle takes only its code, typed with spaces
+// or not, and that a client who gets it wrong too often has to wait, while
+// one who gets it right never does.
+func TestRaffleCode(t *testing.T) {
+	t.Parallel()
+	s, current, _ := newSite(t)
+	code, err := s.store.RaffleCode(t.Context(), current)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wrong := "000000"
+	if code == wrong {
+		wrong = "111111"
+	}
+
+	entry := func(email, code string) url.Values {
+		return url.Values{"name": {"Gopher"}, "email": {email}, "code": {code}}
+	}
+	for i := range 10 {
+		rec := do(t, s.EnterRaffle(), http.MethodPost, "/raffle", entry("g@example.com", wrong))
+		if rec.Code != http.StatusUnprocessableEntity || !slices.Equal(fieldsInError(rec.Body.String()), []string{"code"}) {
+			t.Fatalf("wrong code %d: %d, want 422 with the code in error:\n%s", i, rec.Code, rec.Body)
+		}
+	}
+	if n, _ := s.store.EntryCount(t.Context(), current); n != 0 {
+		t.Errorf("entries = %d after wrong codes, want 0", n)
+	}
+	rec := do(t, s.EnterRaffle(), http.MethodPost, "/raffle", entry("g@example.com", code))
+	if rec.Code != http.StatusTooManyRequests || rec.Header().Get("Retry-After") != "60" {
+		t.Errorf("after ten wrong codes: %d, Retry-After %q, want 429 and 60", rec.Code, rec.Header().Get("Retry-After"))
+	}
+
+	// A minute later there is one more try.
+	s.now = func() time.Time { return meetup.Add(time.Hour + time.Minute) }
+	spaced := code[:3] + " " + code[3:]
+	if rec := do(t, s.EnterRaffle(), http.MethodPost, "/raffle", entry("g@example.com", spaced)); rec.Code != http.StatusOK {
+		t.Errorf("right code, spaced, a minute later: %d, want 200:\n%s", rec.Code, rec.Body)
+	}
+
+	// Right codes cost nothing: a room on one wifi can all enter.
+	other, otherCurrent, _ := newSite(t)
+	code, err = other.store.RaffleCode(t.Context(), otherCurrent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range 50 {
+		if rec := do(t, other.EnterRaffle(), http.MethodPost, "/raffle", entry("g"+strconv.Itoa(i)+"@example.com", code)); rec.Code != http.StatusOK {
+			t.Fatalf("entrant %d on the same address: %d, want 200", i, rec.Code)
+		}
+	}
+}
+
+// TestProposeHoneypot checks a proposal with the hidden field filled in is
+// thanked for and not saved.
+func TestProposeHoneypot(t *testing.T) {
+	t.Parallel()
+	s, _, _ := newSite(t)
+	form := proposal()
+	form.Set("website", "https://spam.example")
+	if rec := do(t, s.Propose(), http.MethodPost, "/speak", form); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Generics") {
+		t.Errorf("status = %d, want the thank-you page:\n%s", rec.Code, rec.Body)
+	}
+	if got, _ := s.store.Proposals(t.Context()); len(got) != 0 {
+		t.Errorf("saved %d proposals with the hidden field filled in, want 0", len(got))
+	}
+	if body := do(t, s.Speak(), http.MethodGet, "/speak", nil).Body.String(); !strings.Contains(body, `name="website"`) {
+		t.Errorf("the form has no hidden field:\n%s", body)
+	}
+}
+
+// TestProposeLimit checks a client can send five proposals an hour, and
+// that sending the form back to be corrected does not count.
+func TestProposeLimit(t *testing.T) {
+	t.Parallel()
+	s, _, _ := newSite(t)
+	invalid := proposal()
+	invalid.Del("title")
+	for range 10 {
+		do(t, s.Propose(), http.MethodPost, "/speak", invalid)
+	}
+	for i := range 5 {
+		if rec := do(t, s.Propose(), http.MethodPost, "/speak", proposal()); rec.Code != http.StatusOK {
+			t.Fatalf("proposal %d: %d, want 200", i, rec.Code)
+		}
+	}
+	rec := do(t, s.Propose(), http.MethodPost, "/speak", proposal())
+	if rec.Code != http.StatusTooManyRequests || rec.Header().Get("Retry-After") != "720" {
+		t.Errorf("sixth proposal: %d, Retry-After %q, want 429 and 720", rec.Code, rec.Header().Get("Retry-After"))
+	}
+	if got, _ := s.store.Proposals(t.Context()); len(got) != 5 {
+		t.Errorf("saved %d proposals, want 5", len(got))
 	}
 }

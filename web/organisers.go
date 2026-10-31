@@ -27,7 +27,9 @@ func (s *Site) Organisers() rest.HandlerFunc {
 
 // draw is an event's raffle, as organisers see it.
 type draw struct {
-	Event   store.Event
+	Event store.Event
+	// Code is the raffle's code, for organisers to show at the meet-up.
+	Code    string
 	Entries int
 	// Winners are the latest drawn first.
 	Winners []store.Entry
@@ -36,8 +38,8 @@ type draw struct {
 // Left is how many entries have still to win.
 func (d draw) Left() int { return d.Entries - len(d.Winners) }
 
-// EventRaffle shows an event's raffle: how many have entered, who has won,
-// and the button to draw.
+// EventRaffle shows an event's raffle: the code to show the room, how many
+// have entered, who has won, and the button to draw.
 func (s *Site) EventRaffle() rest.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		var req eventPath
@@ -51,6 +53,10 @@ func (s *Site) EventRaffle() rest.HandlerFunc {
 		if err != nil {
 			return err
 		}
+		code, err := s.store.RaffleCode(r.Context(), req.ID)
+		if err != nil {
+			return err
+		}
 		entries, err := s.store.EntryCount(r.Context(), req.ID)
 		if err != nil {
 			return err
@@ -59,7 +65,7 @@ func (s *Site) EventRaffle() rest.HandlerFunc {
 		if err != nil {
 			return err
 		}
-		d := draw{Event: event, Entries: entries, Winners: winners}
+		d := draw{Event: event, Code: code, Entries: entries, Winners: winners}
 		return render(w, r, http.StatusOK, "draw", event.Title, d)
 	}
 }

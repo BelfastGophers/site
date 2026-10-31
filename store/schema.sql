@@ -61,3 +61,11 @@ CREATE TABLE IF NOT EXISTS videos (
 	title        TEXT NOT NULL,
 	published_at TEXT NOT NULL
 );
+
+-- Each event's raffle code, which organisers show at the meet-up and
+-- entrants type in, so that only those in the room can enter. A table of its
+-- own, as event_covers is, so that it is created in an existing database.
+CREATE TABLE IF NOT EXISTS raffle_codes (
+	event_id INTEGER PRIMARY KEY REFERENCES events (id) ON DELETE CASCADE,
+	code     TEXT NOT NULL
+);

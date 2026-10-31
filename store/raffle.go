@@ -2,9 +2,13 @@ package store
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"errors"
 	"fmt"
+	"math/big"
+	"slices"
+	"strings"
 	"time"
 )
 
@@ -15,16 +19,94 @@ type Entry struct {
 }
 
 // Enter enters a person in an event's raffle. It reports false if that email
-// address had already entered, which leaves the first entry as it was.
-func (s *Store) Enter(ctx context.Context, eventID int64, name, email string) (bool, error) {
-	res, err := s.db.ExecContext(ctx,
-		`INSERT INTO raffle_entries (event_id, name, email) VALUES (?, ?, ?) ON CONFLICT (event_id, email) DO NOTHING`,
-		eventID, name, email)
+// address had already entered, or one that reaches the same inbox, such as
+// a+raffle@example.com for a@example.com, which leaves the first entry as it
+// was.
+func (s *Store) Enter(ctx context.Context, eventID int64, name, email string) (entered bool, err error) {
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return false, fmt.Errorf("enter raffle for event %d: %w", eventID, err)
 	}
-	n, err := res.RowsAffected()
-	return n == 1, err
+	defer func() {
+		if err != nil {
+			err = errors.Join(err, tx.Rollback())
+		}
+	}()
+
+	emails, err := entrants(ctx, tx, eventID)
+	if err != nil {
+		return false, err
+	}
+	if slices.Contains(emails, Inbox(email)) {
+		return false, tx.Rollback()
+	}
+	if _, err = tx.ExecContext(ctx,
+		`INSERT INTO raffle_entries (event_id, name, email) VALUES (?, ?, ?)`,
+		eventID, name, email); err != nil {
+		return false, fmt.Errorf("enter raffle for event %d: %w", eventID, err)
+	}
+	if err = tx.Commit(); err != nil {
+		return false, fmt.Errorf("enter raffle for event %d: %w", eventID, err)
+	}
+	return true, nil
+}
+
+// entrants returns the inbox of each of an event's raffle entries.
+func entrants(ctx context.Context, tx *sql.Tx, eventID int64) ([]string, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT email FROM raffle_entries WHERE event_id = ?`, eventID)
+	if err != nil {
+		return nil, fmt.Errorf("query raffle entries for event %d: %w", eventID, err)
+	}
+	defer func() { _ = rows.Close() }() // rows.Err has the error that matters
+	var inboxes []string
+	for rows.Next() {
+		var email string
+		if err := rows.Scan(&email); err != nil {
+			return nil, fmt.Errorf("scan raffle entry: %w", err)
+		}
+		inboxes = append(inboxes, Inbox(email))
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("query raffle entries for event %d: %w", eventID, err)
+	}
+	return inboxes, nil
+}
+
+// Inbox is the mailbox an email address delivers to, as far as the raffle
+// can tell: in lower case, without a +tag, which most mail services ignore,
+// and for Gmail without dots, which it ignores too. It is only for telling
+// whether two entries are one person's; the address is kept as entered.
+func Inbox(email string) string {
+	email = strings.ToLower(email)
+	at := strings.LastIndexByte(email, '@')
+	if at < 0 {
+		return email
+	}
+	local, domain := email[:at], email[at+1:]
+	local, _, _ = strings.Cut(local, "+")
+	if domain == "gmail.com" || domain == "googlemail.com" {
+		local, domain = strings.ReplaceAll(local, ".", ""), "gmail.com"
+	}
+	return local + "@" + domain
+}
+
+// RaffleCode returns an event's raffle code, six digits, making it the first
+// time it is asked for.
+func (s *Store) RaffleCode(ctx context.Context, eventID int64) (string, error) {
+	n, err := rand.Int(rand.Reader, big.NewInt(1_000_000))
+	if err != nil {
+		return "", err
+	}
+	if _, err := s.db.ExecContext(ctx,
+		`INSERT INTO raffle_codes (event_id, code) VALUES (?, ?) ON CONFLICT (event_id) DO NOTHING`,
+		eventID, fmt.Sprintf("%06d", n)); err != nil {
+		return "", fmt.Errorf("make raffle code for event %d: %w", eventID, err)
+	}
+	var code string
+	if err := s.db.QueryRowContext(ctx, `SELECT code FROM raffle_codes WHERE event_id = ?`, eventID).Scan(&code); err != nil {
+		return "", fmt.Errorf("raffle code for event %d: %w", eventID, err)
+	}
+	return code, nil
 }
 
 // EntryCount returns how many people have entered an event's raffle.

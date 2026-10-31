@@ -167,3 +167,17 @@ button.link {
 .proposal .description {
     white-space: pre-wrap;
 }
+
+/* The talk proposal form's hidden field, for bots to fill in: off screen
+   rather than display: none, which some bots look for. */
+.hp {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+.raffle-code {
+    font-size: 2em;
+}
