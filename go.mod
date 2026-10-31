@@ -1,6 +1,6 @@
 module belfastgophers.com/site
 
-go 1.27.0
+go 1.27.3
 
 require (
 	github.com/arran4/golang-ical v0.3.8
