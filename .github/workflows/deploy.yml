@@ -13,30 +13,41 @@ concurrency:
   group: deploy
   cancel-in-progress: false  # never interrupt a deploy halfway
 
+# This job holds the key that puts a binary live on the server, so every
+# action it runs is pinned to a commit, as in ci.yml: a tag can be moved to
+# other code, a commit cannot.
 jobs:
   deploy:
     if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.workflow_run.head_sha }}   # the commit CI tested
+          persist-credentials: false
 
-      - uses: actions/setup-go@v5
+      # No cache: the build that ships is made only from the module proxy,
+      # never from a cache another run could have written.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+          cache: false
 
       - name: Build
         run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o site ./cmd/site
 
+      # The secrets come in through the environment, not ${{ }} in the
+      # script, so they are never part of the shell code that runs.
       - name: Deploy
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+          KNOWN_HOSTS: ${{ secrets.KNOWN_HOSTS }}
         run: |
           install -m 700 -d ~/.ssh
-          echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/id_ed25519
-          echo "${{ secrets.KNOWN_HOSTS }}" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/id_ed25519
-          ssh deploy@belfastgophers.com deploy < site
+          (umask 077 && printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519)
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -o StrictHostKeyChecking=yes deploy@belfastgophers.com deploy < site
 
       - name: Check the site is up
         run: |
