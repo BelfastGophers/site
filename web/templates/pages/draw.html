@@ -2,6 +2,8 @@
 <section id="draw">
     <h1>{{.Event.Title}}</h1>
     <p>{{(local .Event.StartsAt).Format "Monday 2 January 2006"}}</p>
+    <p class="raffle-code">Raffle code <strong>{{slice .Code 0 3}} {{slice .Code 3}}</strong></p>
+    <p class="hint">Show this at the meet-up: entering takes it.</p>
     <p>{{.Entries}} {{if eq .Entries 1}}entry{{else}}entries{{end}}</p>
 
     {{with .Winners}}

@@ -70,11 +70,26 @@ func Static() rest.HandlerFunc {
 type Site struct {
 	store *store.Store
 	now   func() time.Time
+
+	// proposals limits how many talk proposals each client sends.
+	proposals *limiter
+	// guesses limits how many wrong raffle codes each client tries. Only
+	// wrong ones count: everyone at a meet-up shares its wifi, and so one
+	// address, as they enter.
+	guesses *limiter
 }
 
 // New returns the site, keeping its data in st.
 func New(st *store.Store) *Site {
-	return &Site{store: st, now: time.Now}
+	return &Site{
+		store: st,
+		now:   time.Now,
+		// Five, then one every twelve minutes: five an hour.
+		proposals: newLimiter(5, 12*time.Minute),
+		// Ten, then one a minute: plenty for typos in a room, and a few
+		// hundred guesses in an evening at a million codes.
+		guesses: newLimiter(10, time.Minute),
+	}
 }
 
 // view is what every page is rendered with: the layout uses Title and Login,

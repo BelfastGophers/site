@@ -4,6 +4,7 @@ import (
 	"errors"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -137,6 +138,11 @@ func TestRaffle(t *testing.T) {
 	}
 	if entered, err := s.Enter(ctx, event, "Again", "a@example.com"); err != nil || entered {
 		t.Errorf("second Enter = %v, %v, want not entered", entered, err)
+	}
+	for _, alias := range []string{"A@Example.com", "a+raffle@example.com"} {
+		if entered, err := s.Enter(ctx, event, "Again", alias); err != nil || entered {
+			t.Errorf("Enter(%s) = %v, %v, want not entered", alias, entered, err)
+		}
 	}
 	if entered, err := s.Enter(ctx, other, "Gopher", "a@example.com"); err != nil || !entered {
 		t.Errorf("Enter in another event = %v, %v, want entered", entered, err)
@@ -357,5 +363,39 @@ func TestVideos(t *testing.T) {
 	}
 	if len(got) != 2 || got[0].Title != "New talk, retitled" || got[1].YouTubeID != "old" || !got[1].PublishedAt.Equal(old.PublishedAt) {
 		t.Errorf("videos = %+v, want the new talk retitled, then the old one kept", got)
+	}
+}
+
+func TestInbox(t *testing.T) {
+	t.Parallel()
+	tests := []struct{ email, want string }{
+		{"Gopher@Example.com", "gopher@example.com"},
+		{"gopher+raffle@example.com", "gopher@example.com"},
+		{"go.pher@example.com", "go.pher@example.com"},
+		{"Go.Pher+x@GoogleMail.com", "gopher@gmail.com"},
+		{"g.o.p.h.e.r@gmail.com", "gopher@gmail.com"},
+		{"no-at-sign", "no-at-sign"},
+	}
+	for _, tt := range tests {
+		if got := Inbox(tt.email); got != tt.want {
+			t.Errorf("Inbox(%q) = %q, want %q", tt.email, got, tt.want)
+		}
+	}
+}
+
+func TestRaffleCode(t *testing.T) {
+	t.Parallel()
+	s := openStore(t)
+	ctx := t.Context()
+	event := createEvent(t, s, "October", meetup)
+	code, err := s.RaffleCode(ctx, event)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(code) != 6 || strings.Trim(code, "0123456789") != "" {
+		t.Errorf("code = %q, want six digits", code)
+	}
+	if again, err := s.RaffleCode(ctx, event); err != nil || again != code {
+		t.Errorf("code asked for again = %q, %v, want %q", again, err, code)
 	}
 }

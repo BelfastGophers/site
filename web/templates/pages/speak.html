@@ -32,6 +32,11 @@
             <label class="choice"><input type="radio" name="remote" value="false" {{if .Form.RemoteIs false}}checked{{end}}> No</label>
         </fieldset>
 
+        <div class="hp" aria-hidden="true">
+            <label for="website">Leave this empty</label>
+            <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+        </div>
+
         <input type="submit" value="Submit">
     </form>
 </section>
